@@ -818,7 +818,7 @@
                 <div class="audio-control">
                     <div class="audio-label">音声</div>
                     <audio class="audio-player" controls>
-                        <source src="${getAudioPath(currentSpeaker, "text00", "baseline")}" type="audio/wav" id="baselineAudio">
+                        <source id="baselineSource" src="${getAudioPath(currentSpeaker, "text00", "baseline")}" type="audio/wav">
                         ブラウザが音声をサポートしていません
                     </audio>
                 </div>
@@ -837,7 +837,7 @@
                 <div class="audio-control">
                     <div class="audio-label">音声</div>
                     <audio class="audio-player" controls>
-                        <source src="${getAudioPath(currentSpeaker, "text00", "stage15")}" type="audio/wav" id="stage15Audio">
+                        <source id="stage15Source" src="${getAudioPath(currentSpeaker, "text00", "stage15")}" type="audio/wav">
                         ブラウザが音声をサポートしていません
                     </audio>
                 </div>
@@ -870,14 +870,23 @@
         }
 
         function updateAudioSources(textId) {
-            const baselineAudio = document.getElementById("baselineAudio");
-            const stage15Audio = document.getElementById("stage15Audio");
+            // <source> タグの src を更新
+            const baselineSource = document.getElementById("baselineSource");
+            const stage15Source = document.getElementById("stage15Source");
 
-            if (baselineAudio) {
-                baselineAudio.src = getAudioPath(currentSpeaker, textId, "baseline");
+            if (baselineSource) {
+                baselineSource.src = getAudioPath(currentSpeaker, textId, "baseline");
+                const baselineAudio = baselineSource.parentElement;
+                if (baselineAudio) {
+                    baselineAudio.load(); // <audio> 要素に再ロードを指示
+                }
             }
-            if (stage15Audio) {
-                stage15Audio.src = getAudioPath(currentSpeaker, textId, "stage15");
+            if (stage15Source) {
+                stage15Source.src = getAudioPath(currentSpeaker, textId, "stage15");
+                const stage15Audio = stage15Source.parentElement;
+                if (stage15Audio) {
+                    stage15Audio.load(); // <audio> 要素に再ロードを指示
+                }
             }
         }
 
