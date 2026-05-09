@@ -1,0 +1,10 @@
+{
+  "speakers": [
+    "61ee76eb",
+    "920a519e",
+    "9d743038",
+    "e9110e8b"
+  ],
+  "count": 4,
+  "description": "This file is auto-generated. It is used by eval_presentation.html to automatically detect speaker folders."
+}
