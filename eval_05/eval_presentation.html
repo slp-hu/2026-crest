@@ -656,7 +656,8 @@
 
     <script>
         // ==================== データ定義 ====================
-        const speakers = ["61ee76eb", "9d743038", "e9110e8b"];
+        // 注：speakers 配列は以下の自動検出機能で動的に生成されます
+        let speakers = [];  // 自動検出で埋まります
         const texts = {
             text00: "こんにちは。今日はいい天気ですね。",
             text01: "本日はご来場いただき、誠にありがとうございます。",
@@ -664,6 +665,58 @@
             text03: "最近、運動不足を感じているので、毎朝散歩を始めました。",
             text04: "この映画は、家族みんなで楽しめる内容になっています。"
         };
+
+        // ==================== 話者フォルダの自動検出 ====================
+        async function detectSpeakers() {
+            console.log("🔍 話者フォルダを自動検出中...");
+            
+            // 一般的な話者フォルダ ID パターンのリスト
+            const potentialSpeakers = [
+                // 現在のフォルダ名
+                "61ee76eb", "9d743038", "e9110e8b",
+                // 他の可能性のあるパターン
+                "speaker_001", "speaker_002", "speaker_003",
+                "speaker_1", "speaker_2", "speaker_3",
+                "speaker_001", "speaker_002", "speaker_003",
+            ];
+            
+            // API や JSON から自動検出（存在する場合）
+            try {
+                const response = await fetch('speaker_list.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    speakers = data.speakers || potentialSpeakers;
+                    console.log("✅ speaker_list.json から読み込み:", speakers);
+                    return;
+                }
+            } catch (e) {
+                // ファイルがない場合は以下の処理へ
+            }
+            
+            // フォルダの自動検出（ref.mp3 が存在するフォルダを探す）
+            const detectedSpeakers = [];
+            for (const candidate of potentialSpeakers) {
+                try {
+                    const refPath = `./${candidate}/ref.mp3`;
+                    const response = await fetch(refPath, { method: 'HEAD' });
+                    if (response.ok) {
+                        detectedSpeakers.push(candidate);
+                        console.log(`✅ ${candidate} - 検出`);
+                    }
+                } catch (e) {
+                    // フォルダが見つからない
+                }
+            }
+            
+            if (detectedSpeakers.length > 0) {
+                speakers = detectedSpeakers;
+                console.log("✅ 自動検出された話者:", speakers);
+            } else {
+                // フォールバック：デフォルト値を使用
+                speakers = ["61ee76eb", "9d743038", "e9110e8b"];
+                console.warn("⚠️ フォルダ自動検出に失敗。デフォルト値を使用します。");
+            }
+        }
 
         // 相対パス生成（HTML ファイルと同じディレクトリに話者フォルダがある前提）
         const getAudioPath = (speaker, textId, model) => {
@@ -891,16 +944,22 @@
         }
 
         // ==================== 初期化実行 ====================
-        document.addEventListener("DOMContentLoaded", () => {
-            // ファイル確認をバックグラウンドで実行
+        document.addEventListener("DOMContentLoaded", async () => {
+            console.log("🚀 Web ページの初期化開始...");
+            
+            // 1. 話者フォルダを自動検出
+            await detectSpeakers();
+            
+            // 2. UI を生成
+            initSpeakerGrid();
+            renderContent();
+            
+            // 3. ファイル確認をバックグラウンドで実行
             checkAudioFiles().then(() => {
                 console.log("\n✨ Web ページの初期化完了");
             }).catch(err => {
                 console.error("ファイル確認中にエラー:", err);
             });
-
-            initSpeakerGrid();
-            renderContent();
         });
     </script>
 </body>
