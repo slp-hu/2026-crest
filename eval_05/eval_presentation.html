@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音声合成評価 - Style-Bert-VITS2 Stage 1.5</title>
+    <link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #2c3e50;
+            --accent-stage15: #27ae60;
+            --accent-baseline: #3498db;
+            --text: #34495e;
+            --light-bg: #ecf0f1;
+            --white: #ffffff;
+            --border: #bdc3c7;
+            --success: #27ae60;
+            --info: #3498db;
+        }
+
+        body {
+            font-family: 'Merriweather', serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ============ ヘッダー ============ */
+        header {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 40px;
+            margin-bottom: 40px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            border-left: 6px solid var(--primary);
+            animation: slideDown 0.6s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h1 {
+            font-size: 2.4em;
+            margin-bottom: 12px;
+            color: var(--primary);
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            color: #7f8c8d;
+            margin-bottom: 24px;
+            font-weight: 300;
+        }
+
+        .methodology {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 24px;
+        }
+
+        .method-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8eef2 100%);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid var(--accent-stage15);
+        }
+
+        .method-card.baseline {
+            border-left-color: var(--accent-baseline);
+        }
+
+        .method-card h3 {
+            font-size: 1em;
+            color: var(--primary);
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .method-card p {
+            font-size: 0.9em;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        /* ============ スピーカーセレクター ============ */
+        .speaker-selector {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .selector-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .selector-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .speaker-btn {
+            padding: 12px;
+            border: 2px solid var(--border);
+            background: var(--white);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-family: 'JetBrains Mono', monospace;
+            transition: all 0.3s ease;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .speaker-btn:hover {
+            border-color: var(--primary);
+            background: var(--light-bg);
+            transform: translateY(-2px);
+        }
+
+        .speaker-btn.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(44, 62, 80, 0.3);
+        }
+
+        /* ============ メインコンテンツ ============ */
+        .comparison-section {
+            display: none;
+            animation: fadeInUp 0.5s ease-out;
+        }
+
+        .comparison-section.active {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .speaker-header {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .speaker-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            word-break: break-all;
+        }
+
+        .ref-audio-box {
+            background: linear-gradient(135deg, #fef5e7 0%, #fdebd0 100%);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #f39c12;
+        }
+
+        .ref-audio-box h3 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #d68910;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .audio-player {
+            width: 100%;
+            height: 32px;
+            border-radius: 4px;
+        }
+
+        .text-selector {
+            background: var(--white);
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .text-selector h2 {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+
+        .text-tabs {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+        }
+
+        .text-tab {
+            padding: 10px 16px;
+            border: 2px solid var(--border);
+            background: var(--white);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .text-tab:hover {
+            border-color: var(--primary);
+            background: var(--light-bg);
+        }
+
+        .text-tab.active {
+            background: var(--primary);
+            color: var(--white);
+            border-color: var(--primary);
+        }
+
+        .text-display {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8eef2 100%);
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 1.1em;
+            line-height: 1.8;
+            color: var(--text);
+            margin-bottom: 24px;
+            font-style: italic;
+            border-left: 4px solid var(--primary);
+        }
+
+        /* ============ 比較レイアウト ============ */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 900px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .model-box {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-top: 5px solid var(--accent-baseline);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .model-box.stage15 {
+            border-top-color: var(--accent-stage15);
+        }
+
+        .model-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--accent-baseline);
+            color: var(--white);
+            padding: 8px 16px;
+            font-size: 0.85em;
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .model-box.stage15 .model-badge {
+            background: var(--accent-stage15);
+        }
+
+        .model-title {
+            font-size: 1.3em;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 16px;
+            margin-top: 8px;
+        }
+
+        .model-description {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .audio-control {
+            margin-bottom: 16px;
+        }
+
+        .audio-label {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #555;
+            display-block;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .audio-player {
+            width: 100%;
+            height: 40px;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        /* ============ 評価情報 ============ */
+        .evaluation-info {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 40px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .eval-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 16px;
+        }
+
+        .eval-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .eval-item {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e8eef2 100%);
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .eval-label {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+        }
+
+        .eval-value {
+            font-size: 1.2em;
+            font-weight: 700;
+            color: var(--primary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        /* ============ 説明セクション ============ */
+        .explanation {
+            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
+            border-radius: 12px;
+            padding: 32px;
+            margin-top: 40px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .explanation h2 {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 20px;
+        }
+
+        .explanation-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .explanation-card {
+            background: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid var(--accent-stage15);
+        }
+
+        .explanation-card.method {
+            border-left-color: #9b59b6;
+        }
+
+        .explanation-card.data {
+            border-left-color: #e74c3c;
+        }
+
+        .explanation-card h3 {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .explanation-card p {
+            font-size: 0.95em;
+            line-height: 1.7;
+            color: #555;
+        }
+
+        .explanation-card ul {
+            margin-left: 20px;
+            margin-top: 12px;
+        }
+
+        .explanation-card li {
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            line-height: 1.6;
+            color: #555;
+        }
+
+        /* ============ フッター ============ */
+        footer {
+            text-align: center;
+            padding: 32px 20px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-top: 40px;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        /* ============ レスポンシブ ============ */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .methodology {
+                grid-template-columns: 1fr;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .selector-grid {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+        }
+
+        /* ============ 読み込み状態 ============ */
+        .loading {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--accent-stage15);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- ヘッダー -->
+        <header>
+            <h1>🎤 音声合成評価</h1>
+            <p class="subtitle">Style-Bert-VITS2 Stage 1.5 ファインチューン版の試聴・比較</p>
+
+            <div class="methodology">
+                <div class="method-card">
+                    <h3>🟢 Stage 1.5 (finetune)</h3>
+                    <p>Common Voice 日本語データセットで学習したファインチューンモデル。参照音声から話者の特性を動的に抽出し、自然な音声合成を実現。</p>
+                </div>
+                <div class="method-card baseline">
+                    <h3>🔵 ベースライン (jvnv-M1-jp)</h3>
+                    <p>元の Style-Bert-VITS2 モデル。同じアーキテクチャでの比較ベースラインとして使用。</p>
+                </div>
+                <div class="method-card">
+                    <h3>📊 評価方法</h3>
+                    <p><strong>SECS (Speaker Embedding Cosine Similarity)</strong>: 参照音声と合成音声の話者類似度を測定。高いほど参照話者の特性を保持。</p>
+                </div>
+            </div>
+        </header>
+
+        <!-- スピーカーセレクター -->
+        <div class="speaker-selector">
+            <div class="selector-title">👥 話者を選択</div>
+            <div class="selector-grid" id="speakerGrid"></div>
+        </div>
+
+        <!-- ⚠️ ファイル配置ガイド（デバッグ用） -->
+        <div style="background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%); border-left: 5px solid #ff6b6b; border-radius: 12px; padding: 20px; margin-bottom: 24px; display: none;" id="setupGuide">
+            <h3 style="color: #ff6b6b; margin-bottom: 12px; font-size: 1.1em;">⚠️ 音声ファイルが見つかりません</h3>
+            <p style="margin-bottom: 12px; color: #333;">以下の手順で音声ファイルを配置してください：</p>
+            <div style="background: white; padding: 16px; border-radius: 8px; margin-bottom: 12px; font-family: monospace; font-size: 0.9em; overflow-x: auto;">
+                <div>📁 フォルダ構成（HTML と同じディレクトリ内）：</div>
+                <div style="margin-top: 8px; margin-left: 16px;">
+                    eval_presentation.html<br>
+                    ├── 61ee76eb/<br>
+                    │   ├── ref.mp3<br>
+                    │   ├── text00_baseline.wav<br>
+                    │   └── ...<br>
+                    ├── 9d743038/<br>
+                    └── e9110e8b/
+                </div>
+            </div>
+            <p style="margin-bottom: 12px; color: #333;"><strong>推奨：</strong> 簡易ウェブサーバーで実行してください</p>
+            <div style="background: #f0f0f0; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 0.85em; color: #333;">
+                # Windows (PowerShell)<br>
+                python -m http.server 8000<br>
+                <br>
+                # Mac / Linux<br>
+                python3 -m http.server 8000<br>
+                <br>
+                ブラウザで http://localhost:8000/eval_presentation.html を開く
+            </div>
+            <p style="margin-top: 12px; color: #666; font-size: 0.9em;">詳細は F12 キーでコンソールを開いて確認してください。</p>
+        </div>
+
+        <!-- メインコンテンツ（スピーカーごと） -->
+        <div id="contentArea"></div>
+
+        <!-- 評価情報 -->
+        <div class="evaluation-info">
+            <div class="eval-title">📈 定量評価の概要</div>
+            <div class="eval-details">
+                <div class="eval-item">
+                    <div class="eval-label">評価対象</div>
+                    <div class="eval-value">5話者 × 5文 = 25 セッション</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-label">評価指標</div>
+                    <div class="eval-value">SECS (コサイン類似度)</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-label">参照音声</div>
+                    <div class="eval-value">SPS Corpus 英語</div>
+                </div>
+                <div class="eval-item">
+                    <div class="eval-label">合成テキスト</div>
+                    <div class="eval-value">日本語 5 バリエーション</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 説明セクション -->
+        <div class="explanation">
+            <h2>🔬 技術詳細・背景</h2>
+
+            <div class="explanation-grid">
+                <div class="explanation-card">
+                    <h3>音声生成プロセス</h3>
+                    <p>このプロジェクトは以下のステップで音声を生成しています：</p>
+                    <ul>
+                        <li><strong>参照音声の準備</strong>：SPS Corpus から取得した英語話者の音声</li>
+                        <li><strong>話者エンベディング抽出</strong>：OpenVoice Tone Color エンコーダーで参照音声の特性を数値化</li>
+                        <li><strong>テキスト処理</strong>：日本語テキストから言語特性を抽出</li>
+                        <li><strong>ピッチ追従</strong>：参照音声の平均基本周波数を自動測定し、合成時に適用</li>
+                        <li><strong>音声合成</strong>：Style-Bert-VITS2 で統合し、話者エンベディングを適用</li>
+                    </ul>
+                </div>
+
+                <div class="explanation-card method">
+                    <h3>評価方法論</h3>
+                    <p><strong>SECS (Speaker Embedding Cosine Similarity)</strong> は、参照音声と合成音声のエンベディング空間における類似度を測定します：</p>
+                    <ul>
+                        <li><strong>高い値（0.7以上）</strong>：参照話者の特性をよく保持</li>
+                        <li><strong>中程度（0.65-0.7）</strong>：基本的な話者特性は保持</li>
+                        <li><strong>低い値（0.65未満）</strong>：話者特性の再現が弱い</li>
+                        <li><strong>動的抽出</strong>：各話者の複数ファイルを結合して SE を抽出、より堅牢な評価を実現</li>
+                    </ul>
+                </div>
+
+                <div class="explanation-card data">
+                    <h3>データセット・モデル詳細</h3>
+                    <p><strong>Stage 1.5</strong> はファインチューン版として：</p>
+                    <ul>
+                        <li><strong>学習データ</strong>：Common Voice 日本語（多話者自然音声）</li>
+                        <li><strong>ベースモデル</strong>：事前学習済み Style-Bert-VITS2</li>
+                        <li><strong>エンコーダー</strong>：OpenVoice Tone Color（言語非依存な話者特性抽出）</li>
+                        <li><strong>特性</strong>：日本語の特性に最適化した音声合成が可能</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="background: white; padding: 20px; border-radius: 8px; border-left: 5px solid #2c3e50;">
+                <strong>聴感印象について：</strong> 客観的な SECS スコアに加え、以下の点に注目してください：
+                <ul style="margin-left: 20px; margin-top: 12px;">
+                    <li><strong>自然性</strong>：音声が自然で聞きやすいか</li>
+                    <li><strong>話者一貫性</strong>：異なるテキストでも同じ話者に聞こえるか</li>
+                    <li><strong>プロソディ</strong>：イントネーション・速度・強調が自然か</li>
+                    <li><strong>ノイズレベル</strong>：背景ノイズや人工的なアーティファクトはないか</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- フッター -->
+        <footer>
+            <p>Style-Bert-VITS2 Stage 1.5 Evaluation • Common Voice Japanese Finetuned Model</p>
+            <p style="margin-top: 8px; font-size: 0.85em;">生成日: 2026年5月4日 | エンコーダー: OpenVoice Tone Color</p>
+        </footer>
+    </div>
+
+    <script>
+        // ==================== データ定義 ====================
+        const speakers = ["61ee76eb", "9d743038", "e9110e8b"];
+        const texts = {
+            text00: "こんにちは。今日はいい天気ですね。",
+            text01: "本日はご来場いただき、誠にありがとうございます。",
+            text02: "駅前のカフェで、友達とコーヒーを飲みながら話しました。",
+            text03: "最近、運動不足を感じているので、毎朝散歩を始めました。",
+            text04: "この映画は、家族みんなで楽しめる内容になっています。"
+        };
+
+        // 相対パス生成（HTML ファイルと同じディレクトリに話者フォルダがある前提）
+        const getAudioPath = (speaker, textId, model) => {
+            return `./${speaker}/${textId}_${model}.wav`;
+        };
+
+        const getRefPath = (speaker) => {
+            return `./${speaker}/ref.mp3`;
+        };
+
+        // ==================== ファイル存在確認（デバッグ用） ====================
+        async function checkAudioFiles() {
+            console.log("🔍 音声ファイルの存在確認を開始...");
+            let foundCount = 0;
+            let missingCount = 0;
+
+            for (const speaker of speakers) {
+                // 参照音声チェック
+                try {
+                    const refResponse = await fetch(getRefPath(speaker), { method: 'HEAD' });
+                    if (refResponse.ok) {
+                        console.log(`✅ ${speaker}/ref.mp3 - OK`);
+                        foundCount++;
+                    } else {
+                        console.warn(`❌ ${speaker}/ref.mp3 - Not found (404)`);
+                        missingCount++;
+                    }
+                } catch (e) {
+                    console.warn(`❌ ${speaker}/ref.mp3 - CORS/Network error`);
+                    missingCount++;
+                }
+
+                // 合成音声チェック（各テキスト）
+                for (const textId of Object.keys(texts)) {
+                    for (const model of ['baseline', 'stage15']) {
+                        try {
+                            const response = await fetch(getAudioPath(speaker, textId, model), { method: 'HEAD' });
+                            if (response.ok) {
+                                foundCount++;
+                            } else {
+                                console.warn(`❌ ${speaker}/${textId}_${model}.wav - Not found (404)`);
+                                missingCount++;
+                            }
+                        } catch (e) {
+                            missingCount++;
+                        }
+                    }
+                }
+            }
+
+            console.log(`\n📊 ファイル確認結果:`);
+            console.log(`  ✅ 見つかった: ${foundCount}`);
+            console.log(`  ❌ 見つからない: ${missingCount}`);
+            
+            if (missingCount > 0) {
+                console.warn(`\n⚠️  いくつかのファイルが見つかりません。`);
+                console.warn(`フォルダ構成を確認してください：`);
+                console.warn(`eval_presentation.html と同じディレクトリに以下を配置してください：`);
+                console.warn(`  - 61ee76eb/ フォルダ（ref.mp3, text00_baseline.wav など）`);
+                console.warn(`  - 9d743038/ フォルダ`);
+                console.warn(`  - e9110e8b/ フォルダ`);
+            }
+        }
+
+        // ==================== 初期化 ====================
+        let currentSpeaker = speakers[0];
+
+        function initSpeakerGrid() {
+            const grid = document.getElementById("speakerGrid");
+            speakers.forEach((speaker) => {
+                const btn = document.createElement("button");
+                btn.className = `speaker-btn ${speaker === currentSpeaker ? "active" : ""}`;
+                btn.textContent = speaker;
+                btn.onclick = () => selectSpeaker(speaker);
+                grid.appendChild(btn);
+            });
+        }
+
+        function selectSpeaker(speaker) {
+            currentSpeaker = speaker;
+            document.querySelectorAll(".speaker-btn").forEach((btn) => {
+                btn.classList.remove("active");
+                if (btn.textContent === speaker) {
+                    btn.classList.add("active");
+                }
+            });
+            renderContent();
+        }
+
+        function renderContent() {
+            const contentArea = document.getElementById("contentArea");
+            contentArea.innerHTML = "";
+
+            const section = document.createElement("div");
+            section.className = "comparison-section active";
+
+            // スピーカーヘッダー
+            const header = document.createElement("div");
+            header.className = "speaker-header";
+            header.innerHTML = `
+                <div class="speaker-title">話者: ${currentSpeaker}</div>
+                <div class="ref-audio-box">
+                    <h3>🎙️ 参照音声 (Reference Audio - English SPS Corpus)</h3>
+                    <audio class="audio-player" controls>
+                        <source src="${getRefPath(currentSpeaker)}" type="audio/mpeg">
+                        ブラウザが音声をサポートしていません
+                    </audio>
+                </div>
+            `;
+            section.appendChild(header);
+
+            // テキスト選択セクション
+            const textSection = document.createElement("div");
+            textSection.className = "text-selector";
+
+            const textTitle = document.createElement("h2");
+            textTitle.textContent = "📝 合成テキストを選択";
+            textSection.appendChild(textTitle);
+
+            const textTabs = document.createElement("div");
+            textTabs.className = "text-tabs";
+            Object.keys(texts).forEach((textId, idx) => {
+                const tab = document.createElement("button");
+                tab.className = `text-tab ${idx === 0 ? "active" : ""}`;
+                tab.textContent = textId;
+                tab.onclick = () => selectText(textId, textTabs);
+                textTabs.appendChild(tab);
+            });
+            textSection.appendChild(textTabs);
+
+            const textDisplay = document.createElement("div");
+            textDisplay.className = "text-display";
+            textDisplay.id = "textDisplay";
+            textDisplay.textContent = texts.text00;
+            textSection.appendChild(textDisplay);
+
+            section.appendChild(textSection);
+
+            // 比較グリッド
+            const compGrid = document.createElement("div");
+            compGrid.className = "comparison-grid";
+
+            // ベースライン
+            const baselineBox = document.createElement("div");
+            baselineBox.className = "model-box baseline";
+            baselineBox.innerHTML = `
+                <span class="model-badge">ベースライン</span>
+                <div class="model-title">🔵 jvnv-M1-jp</div>
+                <div class="model-description">
+                    元の Style-Bert-VITS2 モデル。日本語音声合成の標準的なベースラインとして使用。
+                </div>
+                <div class="audio-control">
+                    <div class="audio-label">音声</div>
+                    <audio class="audio-player" controls>
+                        <source src="${getAudioPath(currentSpeaker, "text00", "baseline")}" type="audio/wav" id="baselineAudio">
+                        ブラウザが音声をサポートしていません
+                    </audio>
+                </div>
+            `;
+            compGrid.appendChild(baselineBox);
+
+            // Stage 1.5
+            const stage15Box = document.createElement("div");
+            stage15Box.className = "model-box stage15";
+            stage15Box.innerHTML = `
+                <span class="model-badge">新モデル</span>
+                <div class="model-title">🟢 Stage 1.5</div>
+                <div class="model-description">
+                    Common Voice 日本語でファインチューンされたモデル。参照音声から話者特性を動的に抽出し、より自然な音声合成を実現。
+                </div>
+                <div class="audio-control">
+                    <div class="audio-label">音声</div>
+                    <audio class="audio-player" controls>
+                        <source src="${getAudioPath(currentSpeaker, "text00", "stage15")}" type="audio/wav" id="stage15Audio">
+                        ブラウザが音声をサポートしていません
+                    </audio>
+                </div>
+            `;
+            compGrid.appendChild(stage15Box);
+
+            section.appendChild(compGrid);
+
+            contentArea.appendChild(section);
+
+            // 初期表示
+            updateAudioSources("text00");
+        }
+
+        function selectText(textId, tabContainer) {
+            // タブの active クラスを更新
+            tabContainer.querySelectorAll(".text-tab").forEach((tab) => {
+                tab.classList.remove("active");
+                if (tab.textContent === textId) {
+                    tab.classList.add("active");
+                }
+            });
+
+            // テキスト表示を更新
+            const textDisplay = document.getElementById("textDisplay");
+            textDisplay.textContent = texts[textId];
+
+            // 音声ソースを更新
+            updateAudioSources(textId);
+        }
+
+        function updateAudioSources(textId) {
+            const baselineAudio = document.getElementById("baselineAudio");
+            const stage15Audio = document.getElementById("stage15Audio");
+
+            if (baselineAudio) {
+                baselineAudio.src = getAudioPath(currentSpeaker, textId, "baseline");
+            }
+            if (stage15Audio) {
+                stage15Audio.src = getAudioPath(currentSpeaker, textId, "stage15");
+            }
+        }
+
+        // ==================== 初期化実行 ====================
+        document.addEventListener("DOMContentLoaded", () => {
+            // ファイル確認をバックグラウンドで実行
+            checkAudioFiles().then(() => {
+                console.log("\n✨ Web ページの初期化完了");
+            }).catch(err => {
+                console.error("ファイル確認中にエラー:", err);
+            });
+
+            initSpeakerGrid();
+            renderContent();
+        });
+    </script>
+</body>
+</html>
