@@ -1,0 +1,2388 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>可逆仮名化 — 声だけを差し替えて音声コーパスを配る</title>
+<style>
+:root{
+  --paper:#e6eaea;
+  --panel:#f4f7f7;
+  --panel-2:#dbe2e2;
+  --ink:#131d1c;
+  --ink-2:#4b5a58;
+  --ink-3:#7a8887;
+  --rule:#c1caca;
+  --rule-2:#a9b5b4;
+  --teal:#0d5b57;
+  --teal-2:#17827b;
+  --wash:rgba(13,91,87,.075);
+  --warm:#8a5a4e;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP","Songti SC",serif;
+  --gothic:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",system-ui,sans-serif;
+  --mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --math:Georgia,"Times New Roman",Times,serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--gothic);font-size:16px;line-height:1.85;
+  font-feature-settings:"palt" 1;-webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:800px;margin:0 auto;padding:0 26px}
+a{color:var(--teal);text-decoration:none;border-bottom:1px solid rgba(13,91,87,.35)}
+a:hover{border-bottom-color:var(--teal)}
+:focus-visible{outline:2px solid var(--teal);outline-offset:3px}
+
+.masthead{border-bottom:1px solid var(--rule);padding:26px 0 22px}
+.masthead .wrap{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between}
+.brand{font-family:var(--mincho);font-size:17px;letter-spacing:.04em}
+.brand em{font-style:normal;color:var(--teal)}
+.meta{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);letter-spacing:.03em}
+
+.hero{padding:64px 0 46px}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;color:var(--teal);text-transform:uppercase;margin:0 0 20px}
+h1{font-family:var(--mincho);font-weight:600;font-size:clamp(30px,5.6vw,50px);line-height:1.34;margin:0 0 26px;text-indent:-.4em}
+.standfirst{font-size:17.5px;line-height:2;max-width:39em;color:var(--ink-2);margin:0}
+.standfirst b{color:var(--ink);font-weight:600}
+.thesis{margin:34px 0 0;padding:20px 0 0;border-top:1px solid var(--rule);font-family:var(--mincho);font-size:19px;line-height:1.9;max-width:34em}
+.thesis .hl{background:linear-gradient(transparent 62%,var(--wash) 62%);padding:0 .1em}
+
+section{padding:52px 0}
+section+section{border-top:1px solid var(--rule)}
+.shead{display:flex;gap:16px;align-items:baseline;margin:0 0 8px}
+.snum{font-family:var(--mono);font-size:12px;color:var(--teal);letter-spacing:.08em;padding-top:.5em;flex:0 0 auto}
+h2{font-family:var(--mincho);font-weight:600;font-size:clamp(22px,3.4vw,29px);line-height:1.5;margin:0}
+h3.sub{font-family:var(--mincho);font-weight:600;font-size:18px;margin:38px 0 12px;color:var(--ink);border-top:1px solid var(--rule);padding-top:22px}
+.dek{margin:0 0 26px 44px;color:var(--ink-3);font-size:14px;line-height:1.8}
+p{margin:0 0 1.15em}
+.body>p,.body>ul,.body>ol{max-width:37em}
+ul,ol{margin:0 0 1.3em;padding-left:1.25em}
+li{margin:0 0 .5em}
+li::marker{color:var(--teal-2)}
+.k{font-family:var(--mono);font-size:.86em;background:var(--panel-2);padding:.1em .38em;border-radius:2px}
+.lead-in{font-family:var(--mincho);font-size:18px;line-height:1.95;max-width:34em;margin:0 0 1.4em}
+
+.callout{margin:34px 0;padding:22px 26px;background:var(--panel);border-left:3px solid var(--teal)}
+.callout p{margin:0;font-family:var(--mincho);font-size:18px;line-height:1.9}
+.callout .src{margin-top:10px;font-family:var(--gothic);font-size:13px;color:var(--ink-3);line-height:1.75}
+
+.def{margin:26px 0;padding:18px 22px;background:#fff;border:1px solid var(--teal)}
+.def dt{font-family:var(--mono);font-size:12px;color:var(--teal);letter-spacing:.06em;margin-bottom:3px}
+.def dd{margin:0 0 14px;font-size:14.5px;line-height:1.8}
+.def dd:last-child{margin-bottom:0}
+.def dd .m{font-size:1em}
+
+figure{margin:34px 0;padding:0}
+figcaption{margin-top:12px;font-size:13px;line-height:1.75;color:var(--ink-3);padding-left:14px;border-left:2px solid var(--rule)}
+figcaption b{color:var(--ink-2);font-weight:600}
+.svgbox{background:var(--panel);border:1px solid var(--rule);padding:16px 14px}
+.svgbox svg{display:block;width:100%;height:auto}
+
+/* corpus cards */
+.corpus{display:grid;grid-template-columns:1fr 74px 1fr;align-items:stretch}
+.card{background:var(--panel);border:1px solid var(--rule);padding:20px 20px 18px;display:flex;flex-direction:column}
+.card.pub{border-color:var(--teal);background:#fff}
+.card h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 4px;font-weight:400}
+.card.pub h3{color:var(--teal)}
+.card .who{font-family:var(--mincho);font-size:18px;margin:0 0 16px;line-height:1.45}
+.rows{list-style:none;margin:0 0 auto;padding:0;font-size:13.5px;line-height:1.6}
+.rows li{display:flex;gap:10px;margin:0;padding:7px 0;border-top:1px dotted var(--rule-2)}
+.rows li:first-child{border-top:0}
+.rows .rlab{flex:0 0 5.4em;color:var(--ink-3);font-size:12px;padding-top:.15em}
+.rows .val{flex:1 1 auto}
+.rows .val em{font-style:normal;color:var(--teal);font-weight:600}
+.rows .val .said{font-family:var(--mincho);font-size:14px;line-height:1.7}
+.gate{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 6px}
+.gate .keyglyph{font-family:var(--mincho);font-size:14px;color:var(--teal);letter-spacing:.1em;writing-mode:vertical-rl;text-orientation:upright}
+.gate .arrow{width:100%;height:1.5px;background:var(--teal);position:relative;opacity:.55}
+.gate .arrow::after{content:"";position:absolute;right:-1px;top:-4.2px;border:5px solid transparent;border-left-color:var(--teal)}
+.player{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+.player .plab{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:.06em;margin-bottom:6px;line-height:1.6}
+.card.pub .player .plab{color:var(--teal)}
+.player audio{width:100%;height:34px;display:block}
+.player .cav{font-size:11.5px;color:var(--ink-3);line-height:1.6;margin-top:6px}
+.player.locked{color:var(--ink-3)}
+.player .lockbar{background:var(--panel-2);border:1px dashed var(--rule-2);padding:9px 12px;font-size:12.5px;color:var(--ink-3);line-height:1.6}
+.recovbar{margin-top:2px;background:var(--panel);border:1px solid var(--rule);border-top:0;padding:16px 20px;display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center}
+.recovbar .rl{font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.06em;flex:0 0 auto}
+.recovbar audio{flex:1 1 240px;height:34px;min-width:200px}
+.recovbar .note{flex:1 1 100%;font-size:12px;color:var(--ink-3);line-height:1.7;margin:0}
+.backflow{margin-top:14px;font-size:12.5px;color:var(--ink-3);text-align:center;line-height:1.7}
+#audNote{margin-top:12px;font-size:12.5px;line-height:1.7;color:var(--warm);background:#f0e9e7;border:1px solid #ddcac5;padding:10px 14px;display:none}
+
+/* tables */
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin:26px 0}
+.tbl caption{caption-side:top;text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-3);padding-bottom:8px}
+.tbl th,.tbl td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top}
+.tbl thead th{font-size:12px;font-weight:600;color:var(--ink-2);border-bottom:1px solid var(--rule-2)}
+.tbl td.num,.tbl th.num{text-align:right;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.tbl tr.hi td{background:var(--wash)}
+.tbl tr.hi td b{color:var(--teal)}
+.tbl td small{color:var(--ink-3);font-size:11.5px}
+
+/* math */
+.m{font-family:var(--math);font-style:italic;font-size:1.06em}
+.m .r{font-style:normal}
+.m sub{font-style:normal;font-size:.66em}
+.eq{margin:26px 0;padding:20px 24px;background:var(--panel);border:1px solid var(--rule);
+  display:flex;flex-wrap:wrap;gap:10px 26px;align-items:center;justify-content:center;
+  font-family:var(--math);font-style:italic;font-size:20px}
+.eq .r{font-style:normal}
+.eq sub{font-style:normal;font-size:.62em}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;margin:0 .2em}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 .3em .12em}
+.frac>span:last-child{padding:.12em .3em 0}
+.rad{display:inline-flex;align-items:stretch;margin:0 .08em}
+.rad>.sign{font-style:normal;transform:scaleY(1.35);padding-right:.02em}
+.rad>.rcd{border-top:1px solid currentColor;padding:.1em .18em 0 .1em}
+.eqnote{font-family:var(--gothic);font-style:normal;font-size:12.5px;color:var(--ink-3);width:100%;text-align:center;margin-top:2px}
+
+/* key recipe */
+.recipe{margin:26px 0;background:#fff;border:1px solid var(--rule);font-family:var(--mono);font-size:13px;line-height:1.95}
+.recipe .rrow{display:flex;gap:14px;padding:10px 18px;border-top:1px solid var(--rule)}
+.recipe .rrow:first-child{border-top:0}
+.recipe .n{color:var(--teal);flex:0 0 1.6em}
+.recipe .c{flex:1 1 auto;word-break:break-word}
+.recipe .c .cm{font-family:var(--gothic);color:var(--ink-3);font-size:12px;display:block;margin-top:2px;line-height:1.6}
+.recipe .c b{color:var(--teal)}
+
+/* ledger */
+.ledger{background:var(--panel);border:1px solid var(--rule)}
+.ledger-bar{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--rule)}
+.ledger-bar button{flex:1 1 0;appearance:none;background:transparent;border:0;border-right:1px solid var(--rule);
+  padding:13px 8px;cursor:pointer;font-family:var(--gothic);font-size:13.5px;color:var(--ink-2);line-height:1.4;transition:background .18s,color .18s}
+.ledger-bar button:last-child{border-right:0}
+.ledger-bar button .sub{display:block;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:3px}
+.ledger-bar button[aria-pressed="true"]{background:var(--teal);color:#fff}
+.ledger-bar button[aria-pressed="true"] .sub{color:rgba(255,255,255,.72)}
+.ledger-stage{padding:18px 14px 6px}
+.ledger svg{display:block;width:100%;height:auto}
+.ledger-read{padding:14px 20px 18px;border-top:1px solid var(--rule);font-size:13.5px;line-height:1.8;color:var(--ink-2);min-height:5.6em}
+.ledger-read b{color:var(--ink)}
+.ledger-read .verdict{font-family:var(--mincho);font-size:16px;color:var(--teal);display:block;margin-bottom:4px}
+
+/* lanes */
+.lanes{display:grid;gap:14px}
+.lane{background:var(--panel);border:1px solid var(--rule);padding:16px 18px}
+.lane.bad{border-left:3px solid var(--rule-2)}
+.lane.good{border-left:3px solid var(--teal);background:#fff}
+.lane h4{margin:0 0 12px;font-family:var(--mincho);font-size:16px;font-weight:600}
+.lane.bad h4{color:var(--ink-2)}
+.lane.good h4{color:var(--teal)}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:13px}
+.step{background:var(--panel-2);padding:6px 11px;border-radius:2px;line-height:1.5}
+.lane.good .step{background:var(--wash)}
+.sep{color:var(--rule-2);font-family:var(--mono)}
+.lane.bad .step.fail{background:#e4d9d6;color:#6b3f39}
+.lane.good .step.win{background:var(--teal);color:#fff}
+.lane .why{margin:12px 0 0;font-size:13px;color:var(--ink-3);line-height:1.75}
+
+/* law lab */
+.lawlab{background:var(--panel);border:1px solid var(--rule)}
+.lab-controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:20px 26px;padding:20px 22px;border-bottom:1px solid var(--rule)}
+.ctl label{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.09em;color:var(--ink-3);margin-bottom:7px}
+.ctl .valout{font-family:var(--mono);font-size:13px;color:var(--teal);font-variant-numeric:tabular-nums}
+.ctl select{width:100%;font-family:var(--gothic);font-size:13.5px;padding:7px 9px;border:1px solid var(--rule-2);background:#fff;color:var(--ink);border-radius:2px}
+input[type=range]{width:100%;accent-color:var(--teal);margin:4px 0 0}
+.seg{display:flex;border:1px solid var(--rule-2);border-radius:2px;overflow:hidden}
+.seg button{flex:1 1 0;appearance:none;border:0;border-right:1px solid var(--rule-2);background:#fff;padding:7px 4px;font-family:var(--mono);font-size:12.5px;cursor:pointer;color:var(--ink-2)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--teal);color:#fff}
+.lab-readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:2px;background:var(--rule);border-bottom:1px solid var(--rule)}
+.stat{background:var(--panel);padding:14px 18px}
+.stat .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;color:var(--ink-3)}
+.stat .v{font-family:var(--math);font-size:25px;color:var(--ink);font-variant-numeric:tabular-nums;margin-top:2px;line-height:1.2}
+.stat.key .v{color:var(--teal)}
+.stat .u{font-family:var(--gothic);font-size:12px;color:var(--ink-3);margin-left:2px}
+.chartbox{padding:16px 12px 6px}
+.chartbox svg{display:block;width:100%;height:auto}
+.lab-note{padding:0 22px 18px;font-size:12.5px;color:var(--ink-3);line-height:1.75}
+
+/* donor panels */
+.clouds{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2px;background:var(--rule);border:1px solid var(--rule)}
+.cloud{background:var(--panel);padding:14px 14px 16px}
+.cloud h4{margin:0 0 2px;font-family:var(--mincho);font-size:15px;font-weight:600}
+.cloud .kv{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-bottom:8px}
+.cloud .kv b{color:var(--teal);font-size:13px}
+.cloud svg{display:block;width:100%;height:auto}
+
+.samplenote{margin:26px 0;padding:16px 20px;background:#f0e9e7;border-left:3px solid var(--warm);
+  font-size:14px;line-height:1.85;color:#5c443e;max-width:none}
+.samplenote b{color:var(--warm);font-weight:600}
+/* unseen-speaker strip */
+.ustrip{border:1px solid var(--rule);background:var(--panel);margin:26px 0}
+.urow{display:grid;grid-template-columns:172px 148px 1fr;gap:16px;align-items:center;padding:12px 18px;border-top:1px solid var(--rule)}
+.urow:first-child{border-top:0}
+.urow.unseen{background:#fff}
+.uname{font-size:13.5px;line-height:1.5}
+.uname .kk{display:block;font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.urow.unseen .uname .kk{color:var(--teal)}
+.upos{font-size:12px;color:var(--ink-3);line-height:1.6}
+.urow.unseen .upos{color:var(--teal)}
+.urow audio{width:100%;height:32px;display:block}
+.urow .miss{font-size:12px;color:var(--ink-3);border:1px dashed var(--rule-2);padding:6px 10px;background:var(--panel-2);line-height:1.5}
+.urow .dur{margin-top:7px}
+.urow .durbar{height:6px;background:var(--panel-2);position:relative}
+.urow .durbar i{position:absolute;left:0;top:0;bottom:0;background:var(--rule-2);display:block}
+.urow.unseen .durbar i{background:var(--teal)}
+.urow.vc .durbar i{background:#6d3f74}
+.urow.vc .uname .kk{color:#6d3f74}
+.urow .durtxt{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);margin-top:3px}
+.ustrip-note{font-size:12.5px;color:var(--ink-3);line-height:1.75;padding:12px 18px;border-top:1px solid var(--rule);margin:0}
+@media (max-width:660px){.urow{grid-template-columns:1fr;gap:8px}}
+.limits{list-style:none;padding:0;margin:22px 0 0;counter-reset:lim}
+.limits li{counter-increment:lim;position:relative;padding:16px 0 16px 46px;border-top:1px solid var(--rule);font-size:14.5px;line-height:1.85;max-width:40em}
+.limits li::before{content:counter(lim,decimal-leading-zero);position:absolute;left:0;top:18px;font-family:var(--mono);font-size:11.5px;color:var(--teal)}
+
+.demolink{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:baseline;justify-content:space-between;margin:30px 0 0;padding:20px 24px;background:var(--teal);color:#fff}
+.demolink b{font-family:var(--mincho);font-size:18px;font-weight:600}
+.demolink span{font-size:13.5px;color:rgba(255,255,255,.8);line-height:1.7}
+.demolink a{color:#fff;border-bottom-color:rgba(255,255,255,.55);font-family:var(--mono);font-size:13px;white-space:nowrap}
+
+footer{border-top:1px solid var(--rule);margin-top:20px;padding:34px 0 60px}
+footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-3);text-transform:uppercase;font-weight:400;margin:0 0 12px}
+.srcgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px 30px;font-size:12.5px;line-height:1.8;color:var(--ink-2)}
+.srcgrid dt{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.srcgrid dd{margin:0 0 10px}
+.srcgrid code{font-family:var(--mono);font-size:11.5px}
+
+@media (max-width:660px){
+  body{font-size:15.5px}
+  .chartbox,.ledger-stage,.svgbox{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .chartbox svg,.svgbox svg{min-width:560px}
+  .ledger-stage svg{min-width:600px}
+  .corpus{grid-template-columns:1fr}
+  .gate{flex-direction:row;padding:14px 0}
+  .gate .keyglyph{writing-mode:horizontal-tb}
+  .gate .arrow{width:40%}
+  .dek{margin-left:0}
+  .eq{font-size:17px;padding:16px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="brand">音声コーパスの<em>可逆仮名化</em></div>
+    <div class="meta">法政大学 SLP / Paper 2 · 2026-08</div>
+  </div>
+</header>
+
+<main>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero">
+  <div class="wrap">
+    <p class="eyebrow">なぜ動くのか</p>
+    <h1>「配れる音声」を作るために、<br>声だけを別人に差し替える。</h1>
+    <p class="standfirst">
+      研究用に音声コーパスを共有したい。けれど声はそのまま話者を指すので、録音をそのまま配ることはできない。
+      そこで<b>公開されているコーパスから学んだ話者モデルで、実在しない声に置き換えて配り</b>、
+      鍵を持つ側だけが、その声が誰だったかを引き当てられるようにする。
+    </p>
+    <div class="thesis">
+      ただし戻るのは <span class="hl">誰か</span> であって、<span class="hl">録音そのものではない</span>。
+    </div>
+    <p class="standfirst" style="margin-top:26px;font-size:15.5px">
+      経路は 2 つある。テキストから<b>作り直して</b>配る経路（§01–§04）と、
+      音声をそのまま<b>変換して</b>配る経路（§05）。仕組みは共通で、要るものと失うものが違う。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ 1 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">01</span><h2>何を手元に置き、何を配るのか</h2></div>
+    <p class="dek">まず具体像から。使うのは <span data-c="full">日本語話し言葉コーパス（CSJ）</span> の 1 発話。</p>
+
+    <p class="lead-in">
+      登場するものが 3 つある。役割が違うので、先に分けておく。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="rolesSvg" viewBox="0 0 720 300" role="img" aria-label="公開コーパス・対象コーパス・配布物の3つの役割"></svg></div>
+      <figcaption>
+        <b>個人性の空間は、誰でも入手できるコーパスから学ぶ。</b>守りたいコーパスから学ぶのではない。
+        だから話者モデル自体は、守るべき情報を持たない。
+      </figcaption>
+    </figure>
+
+    <table class="tbl">
+      <thead><tr><th>登場するもの</th><th>中身</th><th>この方式での役割</th></tr></thead>
+      <tbody>
+        <tr><td>公開の多人数コーパス</td><td>話者ラベルつきの生音声。誰でも入手できる</td>
+            <td><b>話者モデルの材料</b>。声の個人性がどう広がっているかを、ここから学ぶ</td></tr>
+        <tr><td>対象コーパス</td><td>配りたいが、生音声のままでは配れないもの</td>
+            <td><b>テキストと話し方の供給元</b>。話者はモデルにとって<b>未知</b>でよい。
+            <b>音声をそのまま変換する経路（§05）では、テキストすら要らない</b></td></tr>
+        <tr class="hi"><td>公開コーパス</td><td>実際に配布されるもの</td>
+            <td>全部合成音。声は<b>実在しない virtual speaker</b>で、学習話者の誰にも似ていない</td></tr>
+      </tbody>
+    </table>
+
+    <div class="samplenote">
+      <b>この頁では、その 3 つが 1 つのコーパスで兼ねられている。</b>
+      <span data-c="short">CSJ</span> を話者モデルの材料にも、仮名化の題材にも使っているので、
+      「対象コーパスの話者がモデルにとって未知」という条件だけは見本の中で再現できていない。
+      仕組みの上でその条件が要らないことは §04 で説明する。
+      <b>§05 の変換経路はこの条件をいちばん素直に満たす</b>が、
+      未知話者での数値そのものは、対象コーパスが来るまで取れない。
+    </div>
+
+    <p class="lead-in">
+      その断りつきで、具体像を見る。合成モデルは <span data-c="short">CSJ</span> の <span data-c="nspk">375</span> 話者で学習してあり、
+      評価には <span data-c="neval">80</span> 話者 × 1 話者あたり <span data-c="nutt">40</span> 発話を使っている。
+      下の 2 枚は、その中の 1 発話が publisher の手元と公開物とでどう違うか。
+      内容は同じで、声だけが入れ替わっている ——聴き比べられる。
+    </p>
+
+    <div class="samplenote">
+      <b>この頁の音と数字は <span data-c="short">CSJ</span> で撮った見本。</b>
+      <span data-c="short">CSJ</span> はすでに公開されているので、本来この方式を必要とするコーパスではない。
+      この方式が要るのは、<b>これから作られる、生音声のままでは配れないコーパス</b>のほう ——
+      収録はできたが、そのままでは共有できないもの。
+      仕組みと測り方を見せるために、手元で自由に回せるコーパスを代役に立てている。
+      <b>数字はすべて代役で撮ったもので、対象コーパスでは取り直しになる。</b>
+    </div>
+
+    <figure>
+      <div class="corpus">
+        <div class="card">
+          <h3>publisher の手元</h3>
+          <p class="who">原コーパス</p>
+          <ul class="rows">
+            <li><span class="rlab">音声</span><span class="val">原録音。収録環境・息・笑い・発話の重なりを含む</span></li>
+            <li><span class="rlab">声色</span><span class="val">実在の話者そのもの</span></li>
+            <li><span class="rlab">話し方</span><span class="val">その日その発話のリズム</span></li>
+            <li><span class="rlab">テキスト</span><span class="val"><span class="said" id="txtLeft">（読み込み中）</span></span></li>
+            <li><span class="rlab">話者ラベル</span><span class="val">実話者 ID</span></li>
+            <li><span class="rlab">規模</span><span class="val"><span data-c="nspk">375</span> 話者 / 1 話者 <span data-c="nutt">40</span> 発話</span></li>
+          </ul>
+          <div class="player" id="pRef">
+            <div class="plab">参照 — 本人の声で合成したもの</div>
+            <audio id="audRef" controls preload="none"></audio>
+            <p class="cav">原録音そのものではない。原録音は publisher の外に出ないので、比較用にこれを置いている。</p>
+          </div>
+        </div>
+        <div class="gate">
+          <span class="keyglyph">鍵</span>
+          <span class="arrow"></span>
+        </div>
+        <div class="card pub">
+          <h3>公開コーパス</h3>
+          <p class="who">配布されるもの</p>
+          <ul class="rows">
+            <li><span class="rlab">音声</span><span class="val"><em>すべて合成音</em>。原録音は外に出ない</span></li>
+            <li><span class="rlab">声色</span><span class="val"><em>鍵で決まる擬似話者</em>（実在しない）</span></li>
+            <li><span class="rlab">話し方</span><span class="val">元のまま（この設定での意図的な選択）</span></li>
+            <li><span class="rlab">テキスト</span><span class="val"><span class="said" id="txtRight">（読み込み中）</span></span></li>
+            <li><span class="rlab">話者ラベル</span><span class="val">擬似話者 ID。実話者との対応表は<em>鍵からしか作れない</em></span></li>
+            <li><span class="rlab">規模</span><span class="val">同じ</span></li>
+          </ul>
+          <div class="player" id="pPub">
+            <div class="plab">公開音声 — 実際に配布されるもの</div>
+            <audio id="audPub" controls preload="none"></audio>
+            <p class="cav">同じ内容・同じリズム。声だけが別人になっている。この声は<b>学習話者 375 名のどれでもない</b>（§04）。</p>
+          </div>
+        </div>
+      </div>
+      <div class="recovbar" id="recovBar" hidden>
+        <span class="rl">鍵で復元した音声</span>
+        <audio id="audRec" controls preload="none"></audio>
+        <p class="note">当てた話者の声での<b>再合成</b>。録音を取り戻したものではない（§11）。</p>
+      </div>
+      <p class="backflow">鍵を持つ側が後から取り出せるのは、右から左へ引いたこの<b>対応表</b>だけ。左の列そのものではない。</p>
+      <div id="audNote"></div>
+      <figcaption>
+        話し方を残すのは、態度や感情の分析に使えるようにするための選択。<b>その代償は §12 に数字で書く。</b>
+        テキストに含まれる固有名詞などの個人性は、この音声側の仮名化とは別の段（LLM による置換）で扱う。
+      </figcaption>
+    </figure>
+
+    <p>
+      重要なのは、この置き換えが<strong>決定論的で 1 対 1</strong> だということ。同じ鍵・同じ話者なら常に同じ擬似話者になるので、
+      ある話者の 40 発話は公開後も 1 人の同じ擬似話者に集まる。話者という単位がコーパスに残ったまま、
+      その単位が実在の人物を指さなくなる。声を毎回でたらめに散らす匿名化とは、ここが違う。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ 2 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">02</span><h2>なぜ暗号化ではないのか</h2></div>
+    <p class="dek">「鍵で戻せる」と聞いて最初に浮かぶ道は、二重に噛み合わない。</p>
+    <p>実務上の食い違いがひとつ。音声は浮動小数点の信号で、暗号系はふつう整数を前提にしている。</p>
+    <p>
+      より本質的な食い違いがもうひとつ。<strong>暗号は復号すれば丸ごと戻る。</strong>
+      鍵を配った時点で原コーパスがそのまま聴ける状態になるなら、それは「共有」ではなく、コーパス全体に鍵をかけただけになる。
+      大規模なコーパスを研究用に流通させたいという目的に、この形は合わない。
+    </p>
+    <p>
+      では従来の仮名化はどうか。別人の声に変換して配るところまでは同じだが、その「別人」がその場限りで、
+      <strong>後から誰だったのかを辿る道が無い</strong>。同じ話者の発話が発話ごとに違う人になってしまうこともある。
+      復元できないだけでなく、コーパスとしての話者構造も失われる。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ 3 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">03</span><h2>声は、モデルの中では 512 個の数字でできている</h2></div>
+    <p class="dek">差し替えの対象は波形ではなく、合成モデルが内部に持っている「話者の 1 行」。</p>
+
+    <h3 class="sub">モデルのどこにあるのか</h3>
+    <p>
+      使っているのは <strong>VITS 系のニューラル音声合成モデル</strong>（Style-Bert-VITS2 のフォーク）。
+      テキストから波形を直接作る種類のもので、その内部に
+      <strong>話者埋め込み表</strong>を 1 枚持っている。表の大きさは 375 行 × 512 列。1 行が 1 人の話者にあたる。
+    </p>
+    <p>
+      学習は <span data-c="short">CSJ</span> の（音声, テキスト）対で行う。話者 ID がこの表の行を引き、その行を条件として与えたうえで波形を復元させる ——
+      という形で合成器全体を学習するので、<strong>表の中身も学習の過程で一緒に決まっていく</strong>。
+      ここで使うのは<strong>公開されているコーパス</strong>なので、
+      <strong>この表は「守るべき人の名簿」ではなく、声の個性がどう散らばっているかを示す材料</strong>にあたる。
+      ここで使っているのはチェックポイント <span class="k" data-c="ckpt">e10_s83230</span> の時点の表。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="modelSvg" viewBox="0 0 720 320" role="img" aria-label="合成モデルの中での話者埋め込み表の位置"></svg></div>
+      <figcaption>
+        仮名化が触るのは<b>この表の 1 行だけ</b>。モデルの重みにも、合成のコードにも手を入れない。
+        合成の直前に行を差し替え、終わったら元に戻す。
+      </figcaption>
+    </figure>
+
+    <dl class="def">
+      <dt>e<sub>src</sub></dt>
+      <dd>
+        元話者の行そのもの。表から「この話者」の行を 1 本抜き出した 512 次元のベクトルで、
+        その人の声色を担う。<span class="m">src</span> は source ——変換前の側、という意味。
+      </dd>
+      <dt>key（鍵）</dt>
+      <dd>
+        ただの文字列。実装では <span class="k">"paper2-sys-v1"</span> のような短い識別子を使っている。
+        これ自体に数値的な意味はなく、<strong>擬似乱数の種を決めるためだけに使う</strong>（作り方は下）。
+      </dd>
+      <dt>G</dt>
+      <dd>
+        <strong>鍵と話者名から、擬似話者の 512 次元ベクトルを作る決定論的な関数。</strong>
+        乱数を使うが、種が鍵と話者名だけから決まるので、同じ入力なら何度呼んでも同じ結果になる。
+        中身は §09 で開く。
+      </dd>
+    </dl>
+
+    <div class="eq">
+      <span><span class="r">e</span><sub>src</sub> &nbsp;⟶&nbsp; <span class="r">g</span> = <span class="r">G</span>(key, spk)</span>
+      <span class="eqnote">合成の直前に、表の当該行を <span class="m">e<sub>src</sub></span> から <span class="m">g</span> へ入れ替える</span>
+    </div>
+
+    <h3 class="sub">鍵から擬似話者までの具体的な手順</h3>
+    <p>
+      「鍵」が何をしているのかは、5 行で書ける。<strong>鍵は秘密の乱数列そのものではなく、乱数列を再現するための合言葉</strong>にあたる。
+    </p>
+
+    <div class="recipe">
+      <div class="rrow"><span class="n">1</span><span class="c">key = "paper2-sys-v1"<span class="cm">運用側が決める文字列。攻撃者側の対照には別の文字列（<span class="k">paper2-atk-v1</span>）を使う</span></span></div>
+      <div class="rrow"><span class="n">2</span><span class="c">seed = SHA-256( key ‖ 話者名 ) の先頭バイト<span class="cm">話者名を混ぜるので、話者ごとに独立な種になる</span></span></div>
+      <div class="rrow"><span class="n">3</span><span class="c">rng = 疑似乱数生成器( seed )<span class="cm">同じ種なら同じ乱数列。ここが「決定論的」の実体</span></span></div>
+      <div class="rrow"><span class="n">4</span><span class="c">g = <b>G</b>( rng, 話者埋め込み表 )<span class="cm">乱数列を使って表から材料を選び、擬似話者を組み立てる（§09）</span></span></div>
+      <div class="rrow"><span class="n">5</span><span class="c">表の行 ← g　→　合成　→　合成後に行を戻す<span class="cm">例外が出ても必ず戻す。表を壊すと以降の全条件が汚染される</span></span></div>
+    </div>
+
+    <p>
+      鍵を失うと擬似話者を再現できない。逆に言えば、<strong>鍵さえあれば擬似話者は何度でも作り直せる</strong>ので、
+      擬似話者の側を保存しておく必要がない。この性質が §06 で効いてくる。
+    </p>
+
+    <h3 class="sub">表はどんな形をしているのか</h3>
+    <p>
+      512 次元は描けないので、主成分分析で 2 次元に落として見る。実測した性質はこう。
+    </p>
+    <ul>
+      <li>有効ランクは 374。寄与率はほぼ平坦で、上位 5 主成分でも 0.0111–0.0089（一様値 0.0027 の 3–4 倍）しかない</li>
+      <li>中心からの距離 <span class="m">‖W−μ‖</span> の中央値は 20.16、p10–p90 が 19.30–20.96 ＝ <strong>±4% の薄い球殻</strong></li>
+      <li>最近傍距離の中央値 26.14 は残差の 1.30 倍（独立等方なら 1.414）</li>
+    </ul>
+
+    <figure>
+      <div class="svgbox"><svg id="pcaSvg" viewBox="0 0 720 380" role="img" aria-label="話者埋め込み表の主成分 1・2 平面での分布"></svg></div>
+      <figcaption>
+        <b>話者クラスタ構造がほとんど無い、ほぼ等方な分布。</b>「似た声どうしが固まっている」という直観には反する。
+        512 次元では薄い球殻なのに 2 次元では中心の詰まった雲に見えるのは、高次元では普通に起きること
+        ——球殻上の点を平面へ落とすと、大半が中心付近へ投影される。
+        <b>この図は実データの座標の再掲ではなく、実測した固有値スペクトル（0.0111–0.0089）と球殻半径（20.16）を再現した模擬分布。</b>
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════ 4 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">04</span><h2>要素技術 — 多人数話者音声合成</h2></div>
+    <p class="dek">1 つのモデルで何百人もの声を出し分ける。仮名化はこの性質にそのまま乗っている。</p>
+
+    <p>
+      話者ごとに別々のモデルを学習していたら、そもそも「差し替える」という操作が存在しない。
+      375 人ぶんのモデルが並んでいるだけで、何かを書き換えても声は変わらない。
+      <strong>1 つのモデルが話者埋め込みで条件づけられている</strong>からこそ、表の 1 行を入れ替えるだけで別人になる。
+      ここが土台の要素技術で、以降の設計はすべてこの上に建っている。
+    </p>
+    <p>
+      この節で押さえるのは 3 つ。<strong>①個人性の空間は公開コーパスから学ぶ</strong>、
+      <strong>②出てくる声は学習話者の誰にも似ていない</strong>、
+      <strong>③仮名化する話者もモデルにとっては未知でよい</strong>。
+      この 3 つが揃って初めて、「守りたいコーパスの話者を、公開のモデルで仮名化する」という構図が成り立つ。
+      <strong>③ をいちばん素直に満たすのは、次の §05 で見る「音声をそのまま変換する経路」</strong> ——
+      対象話者について、モデルは何も知る必要がない。
+    </p>
+
+    <h3 class="sub"><span data-c="nspk">375</span> 話者を 1 つのモデルにまとめる</h3>
+    <p>
+      学習では <span data-c="short">CSJ</span> の <span data-c="nspk">375</span> 話者を混ぜて 1 つのモデルを作る。同じ音素を違う話者が話している例が大量にあるので、
+      <strong>話者によって変わるものは表へ、話者によらないものは共有の重みへ</strong>と分かれていく。
+      音素の並べ方も、韻律の付け方も、波形の作り方も全員で共有し、声色だけが 1 行 512 個の数字に集まる。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="trainSvg" viewBox="0 0 720 250" role="img" aria-label="多人数話者音声合成の学習で何が共有され何が話者ごとになるか"></svg></div>
+      <figcaption>
+        話者性が表の側へ集まるのは設計で決めたことではなく、多数の話者を 1 つのモデルで学習した結果として起きる分業。
+        <b>この分業が起きていなければ、行を差し替えても声だけを変えることはできない。</b>
+      </figcaption>
+    </figure>
+
+    <h3 class="sub">学習話者に含まれない話者を合成する</h3>
+    <p>
+      では書き込みの側で何ができるのか。<strong>表は「375 個のスロット」ではなく、512 次元空間に散らばった 375 個の点</strong>にすぎない。
+      合成器は行に書かれた値を読むだけで、その値が表に載っているかどうかは見ていない。
+      だから<strong>表に無いベクトルを書いても、そのまま合成できる</strong> ——
+      これが「学習話者に含まれない話者」の作り方になる。
+    </p>
+    <p>
+      そして<strong>公開コーパスの音声は、すべてこれ</strong>。主成分モザイクで作った擬似話者（§09）は
+      375 名のどれでもなく、学習中に一度も出てこなかった声で全発話が合成されている。
+      「学習話者に含まれない話者の合成例」を別に用意する必要はなく、配布物そのものがその例になっている。
+    </p>
+
+    <p>それが破綻していないことは、2 つの測定で言える。</p>
+    <dl class="def">
+      <dt>分離度 k = 3.93</dt>
+      <dd>
+        表に無い擬似話者どうしが、<strong>実話者どうし（4.12）とほぼ同じだけ区別できる</strong>。
+        声としての個体差が潰れていない、ということ。
+      </dd>
+      <dt>自然性 UTMOS +0.122 [+0.066, +0.180]</dt>
+      <dd>
+        学習話者本人を同じモデルで合成し直したもの（<span class="k">A1</span> = 2.840）より
+        <strong>有意に高い</strong>。<b>「知らない話者だから品質が落ちる」ということが起きていない。</b>
+      </dd>
+    </dl>
+
+    <h3 class="sub">どこまで外れてよいか</h3>
+    <p>
+      無制限ではない。§03 で見たとおり実話者は中心から <span class="m">‖W−μ‖</span> ≈ 20.16 の
+      薄い球殻（19.30–20.96）に乗っている。この殻の内側にいるうちは自然性が落ちないが、
+      利得 1.5 倍で外へ押し出す（残差比 1.49）と <strong>UTMOS が −0.130 [−0.197, −0.065] で有意に低下する</strong>。
+      しかも <span class="m">k</span> は 4.38 対 3.93 でほとんど変わらないので、外へ出す理由がない。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="shellSvg" viewBox="0 0 720 340" role="img" aria-label="表の中心からの距離と自然性の関係"></svg></div>
+      <figcaption>
+        横軸は実話者の広がりを 1 としたときの中心からの距離、縦軸は <span class="k">A1</span> を 0 とした自然性の差（話者ブートストラップ 95% 区間）。
+        <b>ただし距離だけで自然性が決まるわけではない</b>：同じ半径にある <span class="k">D_mos</span> と <span class="k">D_real</span> が
+        +0.122 と +0.027 に分かれる理由は未解明。言えるのは<b>殻の外へ出したときだけ有意に落ちる</b>ということまで。
+      </figcaption>
+    </figure>
+
+    <h3 class="sub">仮名化する話者も、モデルにとっては未知でよい</h3>
+    <p>
+      ここまでは「出す側の声」が学習話者でないという話だった。もう一方の端 ——
+      <strong>仮名化される側の話者</strong>はどうか。
+      対象コーパスの話者が話者モデルの表に載っている必要は、<strong>仕組みの上では無い</strong>。
+    </p>
+    <p>
+      理由は §07 で見る完全置換にある。<span class="m">t</span>=1 で行を丸ごと入れ替えるので、
+      元の話者の行の寄与は <span class="m">b<sub>source</sub></span> = 0.022 まで落ちる。
+      合成に要るのは<strong>テキストと話し方</strong>だけで、どちらも録音そのものから取れる ——
+      表を引く必要がない。
+    </p>
+    <p>
+      引き当てる側も同じ。ギャラリは <span class="m">G</span>(key, 名前) を合成して作るが、
+      <strong>この「名前」は文字列であって、表の行ではない</strong>（§03 の作り方を見ればわかる）。
+      候補話者が学習に含まれている必要はない。
+    </p>
+
+    <div class="samplenote">
+      <b>ただし、この点はまだ測れていない。</b>
+      この見本では <span data-c="short">CSJ</span> を話者モデルの材料にも題材にも使っているので、
+      対象話者はたまたま表に載っている。
+      <b>未知話者を仮名化したときの <span class="m">k</span> と自然性は、対象コーパスで取り直すまで空欄</b>。
+      仕組みの上で不要であることと、実際に同じ品質が出ることは別なので、そこは分けて書いている。
+    </div>
+
+    <h3 class="sub">聴き比べ</h3>
+    <p>
+      同じ発話を、表の中の声と、表に無い声で合成したもの。<strong>下の 3 つは学習話者ではない声</strong>で、
+      うち <span class="k">D_mos</span> が実際に配布される条件。
+    </p>
+
+    <div class="ustrip" id="ustrip">
+      <div class="urow" data-cond="A1">
+        <div class="uname">学習話者本人<span class="kk">A1</span></div>
+        <div class="upos">表の中<br>copy-synth（参照）</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow" data-cond="D_real">
+        <div class="uname">鍵で選んだ別の実話者<span class="kk">D_real</span></div>
+        <div class="upos">表の中の別人<br>k = 3.98</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow unseen" data-cond="D_mos">
+        <div class="uname">主成分モザイク<span class="kk">D_mos ← 公開条件</span></div>
+        <div class="upos">表に無い・殻の上<br>残差比 0.993 / k = 3.93</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow unseen" data-cond="D_avg10">
+        <div class="uname">他人 10 名の平均<span class="kk">D_avg10</span></div>
+        <div class="upos">表に無い・中心寄り<br>残差比 0.311 / k = 1.85</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow unseen" data-cond="D_mosg15">
+        <div class="uname">モザイク＋利得 1.5<span class="kk">D_mosg15</span></div>
+        <div class="upos">表に無い・殻の外<br>残差比 1.490 / k = 4.38</div>
+        <div class="uplay"></div>
+      </div>
+      <p class="ustrip-note" id="ustripNote"></p>
+    </div>
+
+    <h3 class="sub">補足 — 期待される往復と、実際に通っている向き</h3>
+    <p>
+      多人数話者合成と聞いてまず浮かぶのは、こういう往復のはず ——
+      <strong>ある人の発話 U を持ってきて、そこからその人の埋め込みを計算し、U と同じテキストとその埋め込みで合成し直して、
+      U と聴き比べる。</strong>似ていれば「学習に居なかった話者も出せる」と言える、という筋道。
+    </p>
+    <p>
+      ところが、<strong>この構成にはその往復の左半分が無い</strong>。
+      §03 で見たとおり <span class="k">emb_g</span> は話者 ID で行を引く表で、
+      <strong>参照音声からその人の行を推定する段がどこにも入っていない</strong>。
+      通っているのは埋め込みから音声への一方向だけで、逆向きの経路が存在しない。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="dirSvg" viewBox="0 0 720 290" role="img" aria-label="埋め込みから音声への向きは通っているが、音声から埋め込みへの向きは無い"></svg></div>
+      <figcaption>
+        だからこのモデルにできるのは「未知の<b>話者の声を真似る</b>」ことではなく、
+        「未知の<b>埋め込みで喋らせる</b>」こと。
+        <b>読み取りの経路が無いまま、書き込みの経路だけがある</b> ——この非対称が、仮名化の土台になっている。
+      </figcaption>
+    </figure>
+
+    <h3 class="sub">その段は、外から作れるのか</h3>
+    <p>
+      同梱していないだけなら、モデルを持つ側が自分で作れてしまうかもしれない。
+      <span class="k">emb_g</span> の行はモデルの中にあるし、各行で合成すればその声の特徴ベクトルはいくらでも測れるので、
+      <strong>（特徴ベクトル, 行）の対を自前で用意して写像を学習する</strong>ことはできる。対象コーパスすら要らない。
+      実際に測った。
+    </p>
+
+    <dl class="def">
+      <dt>やったこと</dt>
+      <dd>
+        表に載っている <span data-c="neval">80</span> 名について、
+        その人の声から測った特徴ベクトル（256 次元）と <span class="k">emb_g</span> の行（512 次元）の対を用意し、
+        <strong>79 名で写像を学習して、残る 1 名の行を当てられるか</strong>を全員について試した
+        （リッジ回帰・正則化 7 段 × 正規化 2 通り）。
+      </dd>
+      <dt>結果</dt>
+      <dd>
+        <strong>rank-1 = 0.00%</strong>（当てずっぽうは 1.25%）。上位 5 位以内に入った割合も <strong>0.00%</strong>（同 6.25%）。
+        予測と正解の cosine は中央値 <strong>0.025</strong> ——<strong>ほぼ直交している</strong>。
+        <span class="m">R²</span> はどの設定でも負で、平均を答えるより悪い。
+      </dd>
+      <dt>偶然との区別</dt>
+      <dd>
+        話者と行の対応を 200 回並べ替えて帰無分布を作ると、順位の中央値は 30.5 対 35.3（帰無）で
+        <strong>p = 0.075</strong>。<b>有意ではないが、そこは論点ではない</b> ——
+        仮に何か残っていたとしても、cosine 0.025 のベクトルで合成した声は目的の人ではなく、ただの別人になる。
+      </dd>
+    </dl>
+
+    <div class="samplenote">
+      <b>ただし、この測定は標本が足りていない。</b>
+      説明変数は 256 次元あるのに、学習に使えるのは 1 人を抜いた残りだけ
+      ——<b>写像を決めるだけの数が無い</b>。
+      模擬実験で拾える写像の強さを測ると、話者数の平方根に反比例して下がる ——
+      <span data-c="neval">80</span> 名で 0.8、375 名で 0.4、1500 行で 0.2。
+      つまり上の結果は「読み取り方向が作れない」の証明ではなく、
+      <b>この規模では作れなかった</b>という報告にすぎない。
+    </div>
+
+    <p>
+      しかも<strong>攻撃する側は、表に載っている話者の数に縛られない</strong>。
+      §09 のモザイクと同じ要領で<strong>行を勝手に作り、それで合成して特徴を測れば、
+      （特徴, 行）の対はいくらでも増やせる</strong> ——実在の人も、コーパスも要らない。
+      上限になるのは <b>GPU 時間だけ</b>。
+      だからこの問いに決着をつけるには、数千行の規模で測り直すしかない。
+    </p>
+
+    <p>
+      それでも現時点で言えることはある。<strong>行はモデルの中にあり、合成して測ることもできる</strong>
+      という条件で、素直な線形回帰は届かなかった。
+      「同梱していないだけで簡単に作れる」ではない、という程度には確かめられている。
+      なお、ここで測っているのは<b>合成音の特徴から行を当てる</b>問題で、
+      §04 冒頭の往復（実録音の U から行を当てる）には、
+      さらに<b>実録音と合成音の差</b>が乗る。
+    </p>
+
+
+    <div class="callout">
+      <p>読み取りの経路が無いことは、この用途では制約ではなく前提。</p>
+      <p class="src">
+        表に書けるのは<b>作ったベクトル</b>であって、誰かの声から<b>測ったベクトル</b>ではない。
+        実在の人物の声へ寄せる経路がそもそも無いので、擬似話者が誰かに似てしまう心配を設計から外せる。
+  読み取りの段を足すこと自体は技術的には可能だが（モデルを凍結して行だけを勾配で当てる、など）、
+        このモデルは<b>自然な仮想話者を作るためのもの</b>として配る、という位置づけを取っている（§12）。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 5 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">05</span><h2>テキストを使わない経路</h2></div>
+    <p class="dek">同じ方式が、音声をそのまま別の声へ変換する経路でも成り立つ。要るものと、失うものが違う。</p>
+
+    <p class="lead-in">
+      ここまでは、テキストと話し方から音声を<strong>作り直して</strong>配る経路の話だった（TTS 経路）。
+      もう一本、<strong>原音を直接、別の声へ変換して</strong>配る経路がある（VC 経路）。
+      擬似話者の作り方も、鍵も、引き当て方もそのまま。<strong>変わるのは入口と出口だけ</strong>。
+    </p>
+
+    <figure>
+      <div class="svgbox"><svg id="routesSvg" viewBox="0 0 720 320" role="img" aria-label="TTS経路とVC経路の違い"></svg></div>
+      <figcaption>
+        VC 経路では、<b>合成モデルは擬似話者の声を用意するためだけに使う</b> ——
+        その声の見本を「お手本」にして、原音の一フレームずつを置き換えていく。
+        だから<b>テキストもアライメントも要らない</b>。
+      </figcaption>
+    </figure>
+
+    <h3 class="sub">何が同じで、何が違うのか</h3>
+    <table class="tbl">
+      <thead><tr><th></th><th>TTS 経路</th><th>VC 経路</th></tr></thead>
+      <tbody>
+        <tr><td>擬似話者の作り方</td><td colspan="2" style="text-align:center">主成分モザイク（§09）— <b>同じ</b></td></tr>
+        <tr><td>鍵と引き当て方</td><td colspan="2" style="text-align:center">擬似ギャラリへの 1-NN（§06）— <b>同じ</b></td></tr>
+        <tr><td>配るもの</td><td>合成音</td><td>変換音</td></tr>
+        <tr class="hi"><td>入力に要るもの</td><td>テキスト・アライメント・話し方</td><td><b>音声だけ</b></td></tr>
+        <tr><td>話し方</td><td>チャネルとして扱える（仮名化も選べる）</td><td><b>常に原話者のもの。消せない</b></td></tr>
+        <tr><td>上限の言い方</td><td><b>構造</b>（原録音が外に出ない）</td><td><b>統計</b>（k と、残余が蓄積しないこと）</td></tr>
+        <tr><td>向く用途</td><td>コーパスの配布</td><td>低遅延・クラウド API</td></tr>
+      </tbody>
+    </table>
+
+    <div class="samplenote">
+      <b>VC 経路では「原録音は外に出ない」が使えない。</b>
+      配布されるのは原音から作った変換音なので、§11 の構造的な上限はこちらには効かない。
+      言えるのは<b>「音色は完全に置き換わっており、鍵がなければ誰にも辿れない」まで</b>。
+      この違いは小さくないので、§12 で経路ごとに書き分けている。
+    </div>
+
+    <h3 class="sub">話し方が素通しであることは、目で見える</h3>
+    <p>
+      同じ発話を両方の経路に通して、長さを比べるとはっきりする。
+      <strong>VC 経路の出力は原音とほぼ同じ長さ</strong>（比 0.9943–0.9992、デモ 8 話者すべて）。
+      TTS 経路は話し方を付け直すので、ずれる ——ある話者では 5.78 秒が 3.84 秒へ 34% 縮み、
+      別の話者では 6.41 秒が 7.12 秒へ伸びた。
+    </p>
+    <p>
+      これは長所でもあり、短所でもある。<strong>話し方を保つので、態度や感情の分析にそのまま使える</strong>。
+      その代わり、<strong>話し方に残る同一性を消す手立てが無い</strong> ——
+      プールを変えても、話し方は常に原話者のものだから。
+      TTS 経路は話し方もチャネルとして仮名化できるが、VC 経路は選べない。<strong>これは構造的な差</strong>。
+    </p>
+
+    <div class="ustrip" id="vcstrip">
+      <div class="urow" data-cond="src">
+        <div class="uname">原音<span class="kk">対象コーパスの録音</span></div>
+        <div class="upos">VC 経路の入力</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow" data-cond="A1">
+        <div class="uname">本人の声で合成<span class="kk">A1</span></div>
+        <div class="upos">TTS 経路・参照</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow unseen" data-cond="D_mos">
+        <div class="uname">擬似話者の声で合成<span class="kk">D_mos</span></div>
+        <div class="upos">TTS 経路・公開条件<br>話し方は付け直される</div>
+        <div class="uplay"></div>
+      </div>
+      <div class="urow vc" data-cond="VC_mos">
+        <div class="uname">擬似話者の声へ変換<span class="kk">VC_mos ← 公開条件</span></div>
+        <div class="upos">VC 経路・公開条件<br>話し方は原音のまま</div>
+        <div class="uplay"></div>
+      </div>
+      <p class="ustrip-note" id="vcstripNote"></p>
+    </div>
+
+    <details style="margin:0 0 26px">
+      <summary style="font-family:var(--mono);font-size:12px;color:var(--ink-3);cursor:pointer;padding:8px 0">対照も聴く（床 VC_self / 誤鍵 VC_mosK2）</summary>
+      <div class="ustrip" id="vcstrip2" style="margin-top:8px">
+        <div class="urow vc" data-cond="VC_self">
+          <div class="uname">本人へ変換<span class="kk">VC_self</span></div>
+          <div class="upos">床・対照<br>見本は <span class="k">A1</span> なので原音とは違って聞こえる</div>
+          <div class="uplay"></div>
+        </div>
+        <div class="urow vc" data-cond="VC_mosK2">
+          <div class="uname">別の鍵で変換<span class="kk">VC_mosK2</span></div>
+          <div class="upos">誤鍵・対照</div>
+          <div class="uplay"></div>
+        </div>
+      </div>
+    </details>
+
+    <h3 class="sub">分離度は落ちない</h3>
+    <table class="tbl">
+      <caption>VC 経路の梯子（80 話者 × 8 発話・プール 32 本・chance rank-1 1.25%）</caption>
+      <thead><tr><th>段</th><th>条件</th><th class="num">k</th><th class="num">rank-1</th><th>TTS 経路の対応</th></tr></thead>
+      <tbody>
+        <tr><td>床</td><td><span class="k">VC_self</span></td><td class="num">4.10</td><td class="num">100%</td>
+            <td><span class="k">A1</span> 4.06–4.12</td></tr>
+        <tr class="hi"><td>正鍵</td><td><span class="k">VC_mos</span></td><td class="num"><b>3.67–3.71</b></td><td class="num"><b>98.75–100%</b></td>
+            <td><span class="k">D_mos</span> 3.84–3.93</td></tr>
+        <tr><td>誤鍵</td><td><span class="k">VC_mosK2</span></td><td class="num">0.08</td><td class="num">0–5%</td><td>—</td></tr>
+        <tr><td>鍵なし</td><td><span class="k">A1</span></td><td class="num">—</td><td class="num">0–1.25%</td><td>chance ちょうど</td></tr>
+      </tbody>
+    </table>
+    <p>
+      床に対する保持率は <strong>VC 0.90 / TTS 0.95</strong>。わずかに劣るが同じ水準で、
+      <strong>擬似話者の作り方は経路に依存しない</strong>と言える。
+      §09 のモザイクがそのまま効いている ——鍵も、1 対 1 の対応も、何も変えていない。
+    </p>
+    <p>
+      副産物として分かったこと。<strong>擬似話者の見本は数分も要らない</strong> ——
+      プールの総時間は話者によって 54 秒から 354 秒まで 6.5 倍の幅があるが、
+      <strong>54 秒のプールでも床の k = 4.10 が出ている</strong>。
+    </p>
+
+    <div class="demolink">
+      <b>4 とおりを聴き比べる</b>
+      <span>原音 / <span class="k">A1</span> / <span class="k">D_mos</span> / <span class="k">VC_mos</span> を同じ発話で。長さの棒つき</span>
+      <a href="./demo_min_vc.html">demo_min_vc →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 6 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">06</span><h2>なぜ戻せるのか — 台帳を作れる側と、作れない側</h2></div>
+    <p class="dek">方式の核。鍵を持つ側は、逆算せずに済ませられる。</p>
+
+    <p>
+      鍵を持つ側は<strong>合成モデルも持っている</strong> ——§03 で見た、表つきのあのモデル。ここが分かれ目になる。
+      モデルがあれば、候補話者ひとりひとりについて「この人が<em>この鍵で</em>写ると、どんな声になるか」を
+      <strong>実際に合成して、測っておける</strong>。
+    </p>
+
+    <dl class="def">
+      <dt>擬似ギャラリ</dt>
+      <dd>
+        候補話者 80 人ぶんの<strong>照合用の見本帳</strong>。1 項目 ＝ 1 人ぶんで、中身は音声そのものではなく、
+        その音声から取り出した<strong>話者特徴ベクトル</strong>（既製の話者照合器が出す 256 次元のもの）。
+        作り方は下の 4 段で、鍵とモデルさえあれば、いつでも作り直せる。
+        <strong>候補話者が話者モデルに含まれている必要はない</strong> ——
+        <span class="m">G</span> が受け取るのは名前という文字列だから（§04）。
+      </dd>
+    </dl>
+
+    <figure>
+      <div class="svgbox"><svg id="galSvg" viewBox="0 0 720 260" role="img" aria-label="擬似ギャラリを作る4つの段"></svg></div>
+      <figcaption>
+        <b>「鍵で合成して測る」とは、この 4 段のこと。</b>これを候補 80 人ぶん繰り返すと、ベクトルが 80 本たまる。それが台帳。
+        1 人あたり何発話ぶん合成するかが §08 の <span class="m">n<sub>e</sub></span> にあたる。
+      </figcaption>
+    </figure>
+
+    <p>
+      観測した公開音声にも、まったく同じ抽出器をかけてベクトルにする。あとは<strong>そのベクトルと台帳 80 本との
+      cosine を測り、いちばん大きい 1 本を選ぶ</strong>だけ。選ばれた項目がどの候補話者から作られたかは分かっているので、
+      そこから名前へ引き戻せる。
+    </p>
+
+    <div class="eq">
+      <span>ŝ = <span class="r">argmax</span><sub>i</sub> &nbsp; cos<span class="r">(</span> x̄<sub>obs</sub>, ḡ<sub>key</sub>(i) <span class="r">)</span></span>
+      <span class="eqnote">
+        <span class="m">x̄<sub>obs</sub></span> ＝ 観測発話から測ったベクトルの重心、
+        <span class="m">ḡ<sub>key</sub>(i)</span> ＝ 候補 <span class="m">i</span> のギャラリ項目（＝上の 4 段の出力の重心）
+      </span>
+    </div>
+
+    <div class="callout">
+      <p>鍵とは「変装後の顔写真台帳を作るための手順書」だと思えばいい。手配写真と台帳を照合すれば誰かは分かる。だが手順書が無ければ、台帳そのものを作れない。</p>
+    </div>
+
+    <figure>
+      <div class="ledger">
+        <div class="ledger-bar" role="group" aria-label="持っている鍵を切り替える">
+          <button type="button" data-state="none" aria-pressed="false">鍵なし<span class="sub">no key</span></button>
+          <button type="button" data-state="wrong" aria-pressed="false">誤った鍵<span class="sub">wrong key</span></button>
+          <button type="button" data-state="right" aria-pressed="true">正しい鍵<span class="sub">keyed</span></button>
+        </div>
+        <div class="ledger-stage"><svg id="ledgerSvg" viewBox="0 0 720 380" role="img" aria-labelledby="ledgerTitle"><title id="ledgerTitle">鍵の有無による台帳と照合の違い</title></svg></div>
+        <div class="ledger-read" id="ledgerRead" aria-live="polite"></div>
+      </div>
+      <figcaption>
+        右の列は上の 4 段の出力そのもの ——<b>候補話者を鍵で写して合成し、測ったベクトル</b>。
+        だから鍵が無ければ列が空になる。細い線は「誰がどこへ写ったか」で、交差しているのは全単射だから。
+        太い線は観測ベクトルとの cosine が最大だった相手を指している。
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════ 7 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">07</span><h2>なぜ「引き算」ではないのか</h2></div>
+    <p class="dek">最初の設計は違った。それが実測で壊れた経緯が、そのままこの方式の説明になる。</p>
+
+    <p>
+      素直な発想はこうだった —— <strong>元の声と別人の声を混ぜて配り、あとで別人ぶんを引き算して戻す</strong>。
+      混合率 <span class="m">t</span> で混ぜておけば、鍵を知る側は <span class="m">t·g</span> を引けば元に戻せるはずだ、と。
+    </p>
+
+    <div class="eq">
+      <span><span class="r">e</span>′ = (1−<span class="r">t</span>)·<span class="r">e</span><sub>src</sub> + <span class="r">t</span>·<span class="r">g</span></span>
+      <span class="eqnote">配る側の混合。復元は両辺から <span class="m">t·g</span> を引いて <span class="m">1−t</span> で割る、という想定だった</span>
+    </div>
+
+    <p>これが 3 つの理由で壊れた。</p>
+    <ul>
+      <li><strong>モデルは注入した特徴を 77% しか追わない</strong>（<span class="m">α</span> ≈ 0.77）。指示した通りには動かない</li>
+      <li>
+        元の成分と注入した成分で忠実度が非対称だった。<span class="m">p ≈ a<sub>s</sub>(1−t)·s + a<sub>g</sub>·t·g</span> と
+        2 変数で測ると <span class="m">a<sub>s</sub></span> = 0.70 に対し <span class="m">a<sub>g</sub></span> = 0.26 で、
+        <strong>約 4 倍の開き</strong>。同じ係数で引けば 4 倍過剰に引くことになる
+      </li>
+      <li>混合率で割り戻す以上、残った誤差は <span class="m">1/(1−t)</span> 倍に増幅される</li>
+    </ul>
+    <p>
+      結果は明快だった。<strong>正しい鍵で戻した復元が、誤った鍵で戻した復元とほとんど同じになった。</strong>
+      鍵が何も買っていない。
+    </p>
+
+    <figure>
+      <div class="lanes">
+        <div class="lane bad">
+          <h4>混ぜて、引く（否定された設計）</h4>
+          <div class="flow">
+            <span class="step">元の声 <span class="m">s</span></span><span class="sep">＋</span>
+            <span class="step">別人 <span class="m">t·g</span></span><span class="sep">→</span>
+            <span class="step">合成</span><span class="sep">→</span>
+            <span class="step">観測から <span class="m">t·g</span> を引く</span><span class="sep">→</span>
+            <span class="step fail">誤差が <span class="m">1/(1−t)</span> 倍に膨らんで的を外す</span>
+          </div>
+          <p class="why">
+            この道は「モデルの中で何が起きているか」を式で解く必要がある。解くには線形性が要る。
+            そして写像は線形ではなかった（線形回帰の <span class="m">R²</span> は 0.157）。
+          </p>
+        </div>
+        <div class="lane good">
+          <h4>置き換えて、照合する（採用）</h4>
+          <div class="flow">
+            <span class="step">元の声を捨てる</span><span class="sep">→</span>
+            <span class="step">擬似話者 <span class="m">g</span> で完全置換（<span class="m">t</span>=1）</span><span class="sep">→</span>
+            <span class="step">合成</span><span class="sep">→</span>
+            <span class="step">鍵でギャラリを合成</span><span class="sep">→</span>
+            <span class="step win">有限の候補から最も近い 1 人を選ぶ</span>
+          </div>
+          <p class="why">
+            解く工程が消えた。鍵を持つ側は写像を逆算せず、<strong>同じモデルで合成して測る</strong>だけでよい。
+            <span class="m">t</span>=1 では元の成分の寄与が <span class="m">b<sub>source</sub></span> = 0.022 まで落ちるので、
+            混ぜ残しも無い。
+          </p>
+        </div>
+      </div>
+    </figure>
+
+    <div class="callout">
+      <p>非線形性は、攻撃者の側にだけ効く。</p>
+      <p class="src">鍵を持つ側は写像を解かずに合成して測れる。持たない側は、非線形な写像を外から逆算するしかない。同じ非線形性が、片側にだけ壁になる。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 8 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">08</span><h2>何発話あれば当たるのか</h2></div>
+    <p class="dek">精度を決めるのは、観測とギャラリの発話数だけ。式は一本しかない。</p>
+
+    <p>
+      §06 の台帳は、1 人あたり 1 発話で作ることも、40 発話ぶん合成して平均することもできる。
+      前者より後者のほうが、そのベクトルは「その擬似話者の声」を安定して表す。この本数が
+      <span class="m">n<sub>e</sub></span>（enrollment ＝ 登録側）。
+      対する <span class="m">n<sub>t</sub></span>（trial ＝ 観測側）は、公開コーパスから拾って照合に使える発話の本数。
+    </p>
+
+    <div class="eq">
+      <span><span class="r">d</span>′ =
+        <span class="frac"><span><span class="r">k</span></span><span><span class="rad"><span class="sign">√</span><span class="rcd">1/<span class="r">n</span><sub>e</sub> + 1/<span class="r">n</span><sub>t</sub></span></span></span></span>
+      </span>
+      <span>EER = 1 − Φ<span class="r">(</span><span class="r">d</span>′/2<span class="r">)</span></span>
+      <span class="eqnote">Φ は標準正規分布の累積分布関数</span>
+    </div>
+
+    <p>
+      <span class="m">k</span> は<strong>擬似話者どうしの分離度</strong>で、ドナー構成だけで決まる。実質これが唯一の設計変数になる。
+      残りは運用の量で、ここに非対称がある ——
+      <strong>ギャラリ側は鍵を持つ側が合成でいくらでも厚くできるが、観測側は増やせない。</strong>
+      観測できるのは、公開コーパスに実際に入っている発話だけだから。
+    </p>
+
+    <figure>
+      <div class="lawlab">
+        <div class="lab-controls">
+          <div class="ctl">
+            <label for="kSel">擬似話者の作り方 &nbsp;<span class="m">k</span></label>
+            <select id="kSel">
+              <option value="1.85">平均 10 名（従来手法相当）&nbsp;— k = 1.85</option>
+              <option value="3.93" selected>主成分モザイク（採用）&nbsp;— k = 3.93</option>
+              <option value="3.98">実話者 1 名（保険）&nbsp;— k = 3.98</option>
+              <option value="4.12">本人＝変換なし（上限参照）&nbsp;— k = 4.12</option>
+            </select>
+          </div>
+          <div class="ctl">
+            <label for="neRange">ギャラリの発話数 <span class="m">n</span><sub>e</sub> — <span class="valout" id="neOut">37</span>（鍵を持つ側が自由に増やせる）</label>
+            <input type="range" id="neRange" min="1" max="40" step="1" value="37">
+          </div>
+          <div class="ctl">
+            <label>観測の発話数 <span class="m">n</span><sub>t</sub>（増やせない）</label>
+            <div class="seg" id="ntSeg" role="group" aria-label="観測の発話数">
+              <button type="button" data-nt="1" aria-pressed="true">1</button>
+              <button type="button" data-nt="2" aria-pressed="false">2</button>
+              <button type="button" data-nt="3" aria-pressed="false">3</button>
+              <button type="button" data-nt="4" aria-pressed="false">4</button>
+            </div>
+          </div>
+        </div>
+        <div class="lab-readout">
+          <div class="stat"><div class="t">1/n<sub>e</sub> + 1/n<sub>t</sub></div><div class="v" id="vOut">—</div></div>
+          <div class="stat"><div class="t">d′</div><div class="v" id="dOut">—</div></div>
+          <div class="stat key"><div class="t">EER</div><div class="v"><span id="eOut">—</span><span class="u">%</span></div></div>
+          <div class="stat"><div class="t">ギャラリ∞ での下限</div><div class="v"><span id="fOut">—</span><span class="u">%</span></div></div>
+        </div>
+        <div class="chartbox"><svg id="lawSvg" viewBox="0 0 720 380" role="img" aria-label="ギャラリ発話数に対する EER の曲線"></svg></div>
+        <p class="lab-note">
+          曲線は現在の <span class="m">k</span> における <span class="m">n<sub>t</sub></span> = 1, 2, 3, 4 の 4 本。
+          破線は各 <span class="m">n<sub>t</sub></span> の下限 <span class="m">1 − Φ(k√n<sub>t</sub>/2)</span> で、
+          <strong>ギャラリをいくら厚くしてもここより下には行かない</strong>。観測側が天井を決めている。
+        </p>
+      </div>
+      <figcaption>
+        灰色の帯は<b>測定分解能</b>。80 話者の評価では EER 0.6% 未満は測れないので、その下の値は式による外挿として読む。
+        法則そのものは、独立な 2 ラン・別々の話者集合で <b>2% 以内に再現</b>している（<span class="k">D_mos</span> 3.93 → 3.84、<span class="k">A1</span> 4.12 → 4.06）。
+      </figcaption>
+    </figure>
+
+    <h3 class="sub">この法則は、何が本物のチャネルかを見分ける</h3>
+    <p>
+      式が言っているのは「<strong>本物の手がかりなら、発話を集めるほど <span class="m">d′</span> は
+      <span class="m">√N</span> で伸びる</strong>」ということ。逆に言えば、
+      <strong>集めても伸びないものは、同定に使える手がかりではない</strong>。
+      この物差しが実際に効いた例が 2 つある。
+    </p>
+
+    <table class="tbl">
+      <caption>集めると強くなるか</caption>
+      <thead><tr><th>手がかり</th><th class="num">k</th><th>発話を増やすと</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr><td>話し方（リズム）<small>TTS 経路</small></td><td class="num">≈ 0.70</td>
+            <td>40 発話ずつで <span class="m">d′</span> = 3.13 → <b>EER 約 6%</b> まで落ちる</td>
+            <td><b>本物のチャネル</b></td></tr>
+        <tr class="hi"><td>VC 経路の残余<small>§05</small></td><td class="num">0.44 → 0.06</td>
+            <td>深さを <b>25 倍</b>にしても EER 43.75% → <b>47.48%</b>。むしろ戻る</td>
+            <td><b>同定に使えない偏り</b></td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      VC 経路の残余は、鍵なしで照合すると EER が 45% 付近まで落ちるので、一見「少し漏れている」ように見える。
+      だが本物のチャネルなら、深さ 25 倍で <span class="m">d′</span> は 3.16 倍になり、
+      EER は 31% まで落ちなければならない。<strong>まったく動かない。</strong>
+      しかも <span class="m">k</span> は深さとともに 0.44 → 0.16 → 0.06 と<strong>単調に減る</strong> ——
+      データを増やすほど信号が弱くなる。<strong>rank-1 はどの深さでも当てずっぽう（0–1.25%）</strong>で、
+      実際の同定は一度も起きていない。
+    </p>
+    <p>
+      <span class="m">k</span> が深さに対して変わらないかどうか ——それが「本物の手がかり」と
+      「測り方の偏り」を分ける試金石になる。<strong>法則は精度を予測するだけでなく、
+      何を心配すべきかも決めてくれる。</strong>
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ 9 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">09</span><h2>主成分モザイクとは何か</h2></div>
+    <p class="dek">唯一の設計変数 <span class="m">k</span> を、どう大きくするか。§03 の <span class="m">G</span> の中身。</p>
+
+    <p>
+      §03 で見たとおり、話者埋め込み表は主成分分解できる。有効ランクは 374 なので、
+      <strong>どの話者も 374 個の座標で書ける</strong> —— 第 1 主成分方向にどれだけ、第 2 主成分方向にどれだけ、という具合に。
+      顔でいえば「目の特徴が +2.1、鼻が −0.4、口が +1.3、…」と 374 項目で記述されている状態にあたる。
+    </p>
+    <p>
+      ここで、従来手法にあたる<strong>平均</strong>と、採用した<strong>主成分モザイク</strong>の違いが出る。
+    </p>
+    <ul>
+      <li><strong>平均 10 名</strong> — 他人 10 名の座標を、374 項目すべてについて平均する。誰の平均をとっても「みんなの平均顔」に寄るので、擬似話者どうしが似てしまう</li>
+      <li><strong>主成分モザイク</strong> — 374 項目それぞれについて、<strong>別々の話者の座標を 1 つずつ借りてくる</strong>。第 1 主成分は A さんの値、第 2 主成分は B さんの値、第 3 主成分は C さんの値…と貼り合わせる。平均をとらないので値が中心に寄らない</li>
+    </ul>
+
+    <figure>
+      <div class="svgbox"><svg id="mosaicSvg" viewBox="0 0 720 400" role="img" aria-label="主成分モザイクの作り方"></svg></div>
+      <figcaption>
+        各列が 1 つの主成分、各行が 1 人の実話者、棒の長さがその座標値。
+        <b>モザイクは列ごとに 1 人選んで、その値だけを取る</b>（枠で囲ったセル）。
+        平均は同じ列の全員をならすので、どの列も 0 に近づいて棒が消える ——これが「団子になる」の中身。
+        <b>鍵が決めているのは、この「どの列でどの行を選ぶか」の並び 374 個。</b>
+        自分以外の 374 名から選ぶので、鍵空間は 374<sup>374</sup> になる。
+      </figcaption>
+    </figure>
+
+    <p>
+      結果として、モザイク擬似話者の散らばりは実話者とほぼ一致する ——残差比 0.993 / 座標分散比 0.985。
+      §03 の主成分平面に重ねると、そのまま重なる。
+    </p>
+
+    <figure>
+      <div class="clouds">
+        <div class="cloud">
+          <h4>実話者</h4>
+          <p class="kv">変換なし ＝ 上限　<b>k = 4.12</b></p>
+          <svg viewBox="0 0 220 200" data-cloud="real" role="img" aria-label="実話者の分布"></svg>
+        </div>
+        <div class="cloud">
+          <h4>平均 10 名</h4>
+          <p class="kv">従来手法相当　<b>k = 1.85</b></p>
+          <svg viewBox="0 0 220 200" data-cloud="avg" role="img" aria-label="平均ドナーの分布"></svg>
+        </div>
+        <div class="cloud">
+          <h4>主成分モザイク</h4>
+          <p class="kv">採用　<b>k = 3.93</b></p>
+          <svg viewBox="0 0 220 200" data-cloud="mos" role="img" aria-label="モザイク擬似話者の分布"></svg>
+        </div>
+      </div>
+      <figcaption>
+        3 枚とも §03 と同じ主成分 1・2 平面・同じ縮尺（破線＝実話者の広がり）。
+        <b>ただし埋め込み上の広がりから <span class="m">k</span> は直接予測できない</b>：平均ドナーは埋め込み上 0.316 まで縮むのに、
+        声の特徴空間では 0.849 しか縮まない。写像が非線形だから、<span class="m">k</span> は合成して測るしかない。
+      </figcaption>
+    </figure>
+
+    <table class="tbl">
+      <caption>ドナー構成ごとの k（p2demo・浅い側 n<sub>e</sub>=1 の非飽和点）</caption>
+      <thead><tr><th>作り方</th><th>何をするか</th><th class="num">k</th></tr></thead>
+      <tbody>
+        <tr><td>平均 10 名 <small><span class="k">D_avg10</span></small></td><td>他人 10 名の座標を全項目で平均</td><td class="num">1.85 ± 0.07</td></tr>
+        <tr class="hi"><td>主成分モザイク <small><span class="k">D_mos</span></small></td><td>主成分ごとに別の話者の座標を借りる</td><td class="num"><b>3.93</b></td></tr>
+        <tr><td>実話者 1 名 <small><span class="k">D_real</span></small></td><td>鍵で決めた撹乱順列で他の実話者へ写す</td><td class="num">3.98</td></tr>
+        <tr><td>本人 <small><span class="k">A1</span></small></td><td>変換なし ＝ 上限</td><td class="num">4.12</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      実話者 1 名を割り当てる方式は <span class="m">k</span> こそ高いが、鍵空間が 374 通りしかなく、
+      しかも実在の人物へのなりすましになる。モザイクは <span class="m">k</span> をほとんど落とさずに、その両方を避けられる。
+    </p>
+  </div>
+</section>
+
+<!-- ══════════ 10 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">10</span><h2>同じ音声で、100% と 1.25%</h2></div>
+    <p class="dek">鍵が何を買っているのかを、1 枚の表で。</p>
+
+    <p>
+      下の 4 行は、すべて<strong>同じ公開音声</strong>に対する結果。違うのは照合に使うギャラリだけで、
+      それが鍵の有無に対応する。候補は 80 人なので、当てずっぽうの的中率は 1.25%。
+    </p>
+
+    <table class="tbl">
+      <caption>攻撃の梯子（p2demo・ギャラリ 36 / 観測 4・条件 D_mos）</caption>
+      <thead><tr><th>照合に使うギャラリ</th><th class="num">EER</th><th class="num">rank-1</th></tr></thead>
+      <tbody>
+        <tr><td>床 — 本人の声どうし</td><td class="num">0.00%</td><td class="num">100%</td></tr>
+        <tr class="hi"><td>正しい鍵</td><td class="num">0.00%</td><td class="num"><b>100%</b></td></tr>
+        <tr><td>誤った鍵</td><td class="num">54.81%</td><td class="num">1.25%</td></tr>
+        <tr><td>鍵なし（本人の声のギャラリで当てにいく）</td><td class="num">50.71%</td><td class="num">1.25%</td></tr>
+      </tbody>
+    </table>
+
+    <p>鍵なしも誤鍵も、rank-1 は当てずっぽうちょうど。観測の本数を振ると §08 の法則の効きがそのまま見える。</p>
+
+    <table class="tbl">
+      <caption>観測発話数を振る（デモページ・ギャラリ 37・条件 D_mos・rank-1）</caption>
+      <thead><tr><th>鍵</th><th class="num">1 発話</th><th class="num">2 発話</th><th class="num">3 発話</th></tr></thead>
+      <tbody>
+        <tr><td>なし</td><td class="num">0.00%</td><td class="num">1.25%</td><td class="num">0.00%</td></tr>
+        <tr><td>誤った鍵</td><td class="num">1.25%</td><td class="num">2.50%</td><td class="num">2.50%</td></tr>
+        <tr class="hi"><td>正しい鍵</td><td class="num"><b>97.50%</b></td><td class="num"><b>100%</b></td><td class="num"><b>100%</b></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:13.5px;color:var(--ink-3);max-width:37em">
+      誤鍵の 2.50% は 80 試行のうち 2 件で、当てずっぽうと区別がつかない。「わずかに漏れている」とは読めない。
+    </p>
+
+    <p>
+      音の品質は落ちていない。自動評価（UTMOS）の中央値は、公開条件 <span class="k">D_mos</span> が 2.947 で、
+      同じ内容を本人の声で合成しただけの <span class="k">A1</span>（2.840）より
+      <strong>有意に高い</strong>（対応差 +0.122、話者ブートストラップ 95% 区間 [+0.066, +0.180]）。
+      仮名化のために音質を犠牲にしてはいない。
+    </p>
+
+    <p>
+      VC 経路（§05）でも梯子は同じ形になる ——床 4.10 / 正鍵 3.67–3.71 / 誤鍵 0.08、
+      鍵なしの rank-1 は<strong>どの深さでも当てずっぽう（0–1.25%）</strong>。
+      EER は 45% 付近まで落ちるが<strong>同定は起きていない</strong>ので、この 2 つは分けて読む必要がある（§08）。
+    </p>
+
+    <div class="demolink">
+      <b>実際に動かして確かめる</b>
+      <span>候補 80 人ぶんのスコアと、鍵で復元した音声</span>
+      <a href="./demo_p2/index.html">demo_p2 →</a>
+    </div>
+    <div class="demolink" style="margin-top:2px;background:#6d3f74">
+      <b>2 つの経路を聴き比べる</b>
+      <span>同じ発話の 4 版と、発話長の比較</span>
+      <a href="./demo_min_vc.html">demo_min_vc →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 11 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">11</span><h2>何が戻り、何が戻らないか</h2></div>
+    <p class="dek">この方式の上限は、統計ではなく構造で決まっている。</p>
+    <p>
+      <strong>TTS 経路</strong>では、配布されるものは<strong>すべて合成音</strong>で、原録音は publisher の外に出ない。
+      収録環境も、息も、笑いも、発話の重なりも、公開の時点ですでに存在しない。
+    </p>
+    <p>
+      鍵で戻るのは<strong>話者の同一性</strong>。復元音は「当てた話者の声での再合成」であって、録音ではない。
+      だから鍵が漏れたときに漏れるのも再合成であって、原データではない。
+    </p>
+    <p>
+      <strong>VC 経路（§05）では、この構造的な上限が効かない。</strong>
+      配布されるのは原音から作った変換音なので、原録音が publisher の外に出ていない、とは言えない。
+      言えるのは<strong>「音色は完全に置き換わっており、鍵がなければ誰にも辿れない」まで</strong> ——
+      つまり統計的な上限になる。経路ごとの書き分けは §12 にまとめてある。
+    </p>
+    <p>
+      戻し方は VC 経路のほうが簡単で、<strong>当てた話者の声の見本へ、もう一度変換し直すだけ</strong>
+      （TTS 経路は合成をやり直す必要がある）。ただし<strong>戻るものの性質は同じ</strong> ——
+      原話者の声で、原発話の話し方で言い直したものであって、録音ではない。
+    </p>
+
+    <div class="callout">
+      <p>復元できないことは、この方式の弱点ではなく安全性そのものになっている。</p>
+      <p class="src">この上限は「誤差がこれだけ残るから戻らない」ではなく「原録音がそもそも外に出ていない」と言うほうが強い。統計で言えば、モデルが良くなった日に崩れる。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ 12 ══════════ -->
+<section>
+  <div class="wrap body">
+    <div class="shead"><span class="snum">12</span><h2>この設定が守っていないもの</h2></div>
+    <p class="dek">何に対する保護なのかを、先に書く。経路によって答えが違う項目は分けてある。</p>
+
+    <div class="samplenote">
+      <b>いちばん混ざりやすいのはここ。</b>
+      「原録音が publisher の外に出ない」という<b>構造的な上限は TTS 経路にしか成り立たない</b>。
+      VC 経路が配るのは原音から作った変換音なので、上限は統計で言うしかない ——
+      <b>k と、残余が蓄積しないこと</b>（§08）。
+      経路をまたいで一般化しないこと。
+    </div>
+    <ol class="limits">
+      <li>
+        <b>話し方は、どちらの経路でも保護していない。</b>
+        <b>TTS 経路</b>で公開している設定 <span class="k">D_mos</span> は音色だけを仮名化していて、
+        リズムは元のまま出ている。態度や感情の分析に使えるようにするための意図的な選択だが、代償がある ——
+        リズムを話者の手がかりとして使うと分離度は <span class="m">k</span> ≈ 0.70 になり、
+        <strong>登録・観測ともに 40 発話ずつ使える攻撃者に対しては、およそ 6% の EER が残る</strong>。
+        これは<b>集めると強くなる本物のチャネル</b>（§08）。
+        <b>VC 経路</b>では話し方が常に原話者のもので、<strong>そもそも仮名化する手立てが無い</strong> ——
+        TTS 経路は <span class="k">P_full</span> のように両方を仮名化する設定を選べるが、VC 経路は選べない。
+        これは実装の都合ではなく<b>構造的な差</b>。
+      </li>
+      <li>
+        <b>VC 経路の残余は、実在するが蓄積しない。</b>
+        鍵なしで公開音を照合すると EER は 45% 付近まで落ちる（TTS 経路は 50% ちょうど）。
+        ただし<strong>深さを 25 倍にしても 43.75% → 47.48% で動かず</strong>、
+        <span class="m">k</span> は 0.44 → 0.16 → 0.06 と<strong>深さとともに減る</strong>。
+        <strong>rank-1 はどの深さでも当てずっぽう</strong>で、実際の同定は起きていない。
+        <b>「EER が 50% を割る」と「同定できる」は別のこと</b>として書き分ける必要がある。
+        なお前項のリズムチャネル（6% まで落ちる）とは性質が違うので、混ぜて読まないこと。
+      </li>
+      <li>
+        <b>「音色だけを仮名化している」は厳密ではない。</b>
+        <span class="k">A1</span> と <span class="k">D_mos</span> は話し方の指定が同一で違いは
+        <span class="k">emb_g</span> だけなのに、<strong>発話の長さが平均 6.7% 動く</strong>
+        （中央値 1.012 / p10 0.904 / p90 1.110）。前後の無音を切っても 6.8% で変わらないので、
+        <strong>パディングではなく発話内部の時間</strong>。
+        <b>話者埋め込みは継続長の予測にも効いている</b>ということで、
+        「音色のみ」という言い方は近似だと断ったうえで使う必要がある。
+      </li>
+      <li>
+        <b>音色チャネルは、集約しても破れない。</b>
+        鍵を持たない攻撃者から見た音色の分離度は <span class="m">k</span> = 0.032 で、
+        40 発話 × 40 発話でも EER 47.2% ＝ 当てずっぽう近傍のまま。塞がっているのはこちらのチャネルだけ、と正確に言える。
+      </li>
+      <li>
+        <b>EER 0.00% は「完璧」ではなく測定限界。</b>
+        80 話者の評価では 0.6% 未満を測る分解能が無い。論文用にはより多い話者数で取り直す必要がある。
+      </li>
+      <li>
+        <b>従来手法との比較は「相当」であって同条件ではない。</b>
+        比較に使った実装は原著の距離ベースのドナー選択規則を入れておらず、鍵も持たない
+        （ドナー集合の種が話者名だけから決まるので、規則を知る者は誰でも再構成できる ——
+        実測で 375 話者すべて再構成に成功した）。
+      </li>
+      <li>
+        <b>守れる相手と守れない相手を分けて書く。</b>
+        見知らぬ人間による聴取、既製の話者照合器、声のクローン作成に対しては保護になる
+        ——音色は分離度 4.06 と最も機械可読なチャネルで、そこが鍵の下に入っている。
+        韻律を手がかりにできる攻撃者に対しては、この設定では足りない。
+        <b>VC 経路でも音色の保護は同じ強さで効く</b>（鍵なしの rank-1 は当てずっぽう）が、
+        韻律については TTS 経路のような選択肢が無い。
+      </li>
+      <li>
+        <b>擬似話者は誰の成りすましでもない。</b>
+        この合成器は<strong>自然な仮想話者を作るためのもの</strong>で、実在話者の声を無許可で再現するためのものではない。
+        位置づけが後付けでないことは測れている ——鍵を持たない照合では公開音声の rank-1 が
+        <strong>1.25% ＝ 当てずっぽうちょうど</strong>で、擬似話者は実在の
+        <span data-c="neval">80</span> 名の誰とも一致しない。作られているのは実在しない話者。
+        ただしこれは運用上の位置づけであって、コードが強制するものではない。
+      </li>
+      <li>
+        <b>話者モデルを公開コーパスから作ることが、この構図の要。</b>
+        表に載っているのは公開コーパスの話者で、その生音声は既に流通している。だから
+        <b>モデルをコーパスと一緒に配っても、対象コーパスの話者について新たに漏れるものは無い</b>。
+        逆に言えば、<b>対象コーパスそのものでモデルを学習してはいけない</b> ——
+        その瞬間、表が守るべき人の名簿になり、モデルを配れなくなる。
+        この頁の見本は <span data-c="short">CSJ</span> が両方を兼ねているので、この分離を示せていない。
+      </li>
+      <li>
+        <b>「読み取りの経路が無い」は同梱物についての事実。</b>
+        §04 の非対称は、配るモデルに音声 → 埋め込みの段が入っていない、という意味であって、
+        モデルを持つ側が外からその段を構成することまでを禁じるものではない
+        （行を copy-synth して特徴を測れば、学習データは対象コーパス無しでも作れる）。
+        <b>その最も条件のよい構成を実際に試したが、リッジ回帰では当てられなかった</b>
+        （rank-1 0.00% / cosine 中央値 0.025 / 並べ替え p = 0.075、§04）。
+        ただし<b>この測定は標本が足りておらず暫定</b>で、線形回帰についてしか言えていない。
+        攻撃側は行を勝手に作って合成できるので標本数の上限は GPU 時間だけ、という点も含めて、
+        数千行の規模で測り直す必要がある。
+      </li>
+    </ol>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <h3>数字の出所</h3>
+    <dl class="srcgrid">
+      <div>
+        <dt>p2demo</dt>
+        <dd>manifest sha8 <code>6e86dd57</code> / 80 話者 × 40 発話 × 6 条件<br>§01・§08・§09・§10 の数値</dd>
+        <dt>p2rk</dt>
+        <dd><code>eval_manifest__p2rk.json</code> / 80 話者 × 8 発話 × 5 条件<br>ラン間再現性の確認</dd>
+        <dt>vcprobe1 / vcprobe_deep</dt>
+        <dd>80 話者 × 8 発話・プール 32 本 / 深さ掃引<br>§05・§08 の VC 経路の数値</dd>
+      </div>
+      <div>
+        <dt>合成モデル</dt>
+        <dd>ckpt <code data-c="ckpt">e10_s83230</code>（<span data-c="short">CSJ</span> <span data-c="nspk">375</span> 話者で学習）</dd>
+        <dt>当てずっぽうの水準</dt>
+        <dd>rank-1 = 1.25%（候補 80 人）</dd>
+        <dt>動くデモ</dt>
+        <dd><a href="./demo_p2/index.html">demo_p2/index.html</a></dd>
+      </div>
+    </dl>
+  </div>
+</footer>
+
+<!-- 音源。fetch は file:// で落ちるので script src で読む。
+     ① audio/audio_index.js があればそれを使う（build_explainer_audio.py が作る）
+     ② 無ければ demo_p2/demo_data.js から拾えるぶんだけ使う -->
+<script src="./audio/audio_index.js" onerror="window.__AUDIO_INDEX_FAILED=true"></script>
+<script src="./demo_p2/demo_data.js" onerror="window.__DEMO_LOAD_FAILED=true"></script>
+
+<script>
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════════
+   見本に使うコーパス。差し替えるときはここを書き換える。
+   data-c="…" の付いた要素に流し込まれる（JS を切っても既定文言のまま読める）。
+
+   ★ ここで直るのは「名前と規模」だけ。以下は必ず取り直すこと:
+     §03  有効ランク / 寄与率（上位 5 と一様値）/ ‖W−μ‖ の中央値と p10–p90 / 最近傍距離
+     §04  UTMOS の 4 条件（A1 基準の対応差と 95% 区間）/ 残差比
+           読み取り方向の LOO（rank-1 / cos 中央値 / 並べ替え p）— loo_embg_probe.py
+           ★ 未知話者を仮名化したときの k と自然性（見本では空欄。対象コーパスで初めて取れる）
+     §05  VC 経路の k（床 / 正鍵 / 誤鍵 / 鍵なし）/ 長さ比 / プール総時間の下限
+     §08  リズムチャネルの k と導出 EER / VC 残余が蓄積しないことの確認（深さ掃引）
+     §09  ドナー構成ごとの k / ラン間再現性 / 鍵空間の指数（= 有効ランク）
+     §10  攻撃の梯子 / 観測本数ごとの rank-1 / chance（= 1 / 話者数）
+     §12  音色チャネルの k / 測定分解能 / emb_g → 継続長の 6.7%（A1 と D_mos の長さ比）
+     図    下の SPEC[] と RSHELL（§03 と §09 の模擬分布はこの 2 つで決まる）
+   ═══════════════════════════════════════════════════════════════════ */
+var CORPUS = {
+  short: "CSJ",
+  full:  "日本語話し言葉コーパス（CSJ）",
+  nSpk:  375,     // 学習話者数
+  nUtt:  40,      // 1 話者あたりの発話数
+  nEval: 80,      // 評価に使う話者数
+  ckpt:  "e10_s83230"
+};
+
+/* ═══ 手で指定したい場合はここに書く（audio/audio_index.js が無いときに使われる） ═══ */
+var AUDIO_OVERRIDE = {
+  demoDir: "./demo_p2/",   // explainer_p2.html から見た demo_p2/ の位置
+  text: null,              // 例: "えー、それでは始めさせていただきます"
+  ref:  null,              // 例: "./demo_p2/wav/A1__10__7e5534b7c6.wav"
+  pub:  null,
+  rec:  null,
+  strip:{           // 聴き比べ（条件名 → wav パス）
+    A1:null, D_real:null, D_mos:null, D_avg10:null, D_mosg15:null,
+    src:null, VC_mos:null, VC_self:null, VC_mosK2:null
+  }
+};
+
+/* ─── 正規分布 ─── */
+function erf(x){
+  var z=Math.abs(x), t=2/(2+z), ty=4*t-2;
+  var cof=[-1.3026537197817094,6.4196979235649026e-1,1.9476473204185836e-2,
+    -9.561514786808631e-3,-9.46595344482036e-4,3.66839497852761e-4,
+    4.2523324806907e-5,-2.0278578112534e-5,-1.624290004647e-6,
+    1.303655835580e-6,1.5626441722e-8,-8.5238095915e-8,
+    6.529054439e-9,5.059343495e-9,-9.91364156e-10,-2.27365122e-10,
+    9.6467911e-11,2.394038e-12,-6.886027e-12,8.94487e-13,
+    3.13092e-13,-1.12708e-13,3.81e-16,7.106e-15];
+  var d=0,dd=0,tmp;
+  for(var j=cof.length-1;j>0;j--){ tmp=d; d=ty*d-dd+cof[j]; dd=tmp; }
+  var ans=t*Math.exp(-z*z+0.5*(cof[0]+ty*d)-dd);
+  return 1-(x>=0?ans:2-ans);
+}
+function Phi(x){ return 0.5*(1+erf(x/Math.SQRT2)); }
+function eerPct(k,ne,nt){ return 100*(1-Phi((k/Math.sqrt(1/ne+1/nt))/2)); }
+function fmtEER(p){ return p<0.01 ? "&lt;0.01" : (p<10 ? p.toFixed(2) : p.toFixed(1)); }
+function mulberry32(a){ return function(){ a|=0;a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a);
+  t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function gauss(rnd){ var u=0,v=0; while(u===0)u=rnd(); while(v===0)v=rnd();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v); }
+var NS="http://www.w3.org/2000/svg";
+function el(tag,attrs,text){
+  var n=document.createElementNS(NS,tag);
+  for(var a in attrs){ if(Object.prototype.hasOwnProperty.call(attrs,a)) n.setAttribute(a,attrs[a]); }
+  if(text!=null) n.textContent=text;
+  return n;
+}
+var C={ink:"#131d1c",ink2:"#4b5a58",ink3:"#7a8887",rule:"#c1caca",rule2:"#a9b5b4",
+       teal:"#0d5b57",teal2:"#17827b",panel:"#dbe2e2",wash:"rgba(13,91,87,.10)"};
+function box(svg,x,y,w,h,label,opt){
+  opt=opt||{};
+  svg.appendChild(el("rect",{x:x,y:y,width:w,height:h,rx:2,
+    fill:opt.fill||"#fff",stroke:opt.stroke||C.rule2,"stroke-width":opt.sw||1,
+    "stroke-dasharray":opt.dash||"none"}));
+  var lines=String(label).split("\n");
+  var y0=y+h/2-(lines.length-1)*7.5+4.5;
+  lines.forEach(function(t,i){
+    svg.appendChild(el("text",{x:x+w/2,y:y0+i*15,"text-anchor":"middle",
+      fill:opt.color||C.ink,"font-size":opt.fs||"12.5","font-family":"system-ui,sans-serif"},t));
+  });
+}
+function arrow(svg,x1,y1,x2,y2,opt){
+  opt=opt||{};
+  svg.appendChild(el("path",{d:"M"+x1+","+y1+" L"+x2+","+y2,fill:"none",
+    stroke:opt.stroke||C.rule2,"stroke-width":opt.sw||1.4,"stroke-dasharray":opt.dash||"none"}));
+  var a=Math.atan2(y2-y1,x2-x1), s=5;
+  svg.appendChild(el("path",{d:"M"+x2+","+y2+
+    " L"+(x2-s*Math.cos(a-0.5))+","+(y2-s*Math.sin(a-0.5))+
+    " L"+(x2-s*Math.cos(a+0.5))+","+(y2-s*Math.sin(a+0.5))+" Z",
+    fill:opt.stroke||C.rule2}));
+}
+
+/* ── CORPUS を data-c の付いた要素へ流し込む ── */
+(function(){
+  var map={short:CORPUS.short, full:CORPUS.full, nspk:String(CORPUS.nSpk),
+           nutt:String(CORPUS.nUtt), neval:String(CORPUS.nEval), ckpt:CORPUS.ckpt};
+  Array.prototype.forEach.call(document.querySelectorAll("[data-c]"),function(n){
+    var v=map[n.getAttribute("data-c")];
+    if(v!=null) n.textContent=v;
+  });
+})();
+
+/* ══════════ §01 音源と書き起こしの結線 ══════════ */
+(function(){
+  var note=document.getElementById("audNote");
+  var dir=AUDIO_OVERRIDE.demoDir;
+
+  function setText(t){
+    document.getElementById("txtLeft").textContent="「"+t+"」";
+    document.getElementById("txtRight").textContent="「"+t+"」";
+  }
+  function fail(msg){
+    ["txtLeft","txtRight"].forEach(function(id){
+      document.getElementById(id).textContent="書き起こし（そのまま公開）";
+    });
+    ["pRef","pPub"].forEach(function(id){
+      var p=document.getElementById(id);
+      p.querySelector("audio").remove();
+      var b=document.createElement("div"); b.className="lockbar";
+      b.textContent="音源未接続"; p.insertBefore(b,p.querySelector(".cav"));
+    });
+    note.style.display="block";
+    note.innerHTML="<b>音源が接続されていません。</b>"+msg+
+      "<br>この HTML と同じ階層に <code>audio/</code> を置くのがいちばん確実です:"+
+      "<br><code>explainer_p2.html</code> / <code>audio/audio_index.js</code> + <code>audio/*.wav</code>"+
+      "<br><code>build_explainer_audio.py</code> がその 2 つを作ります。"+
+      "（<code>demo_p2/</code> だけでも <code>A1</code> と <code>D_mos</code> は鳴ります）";
+    fillAll(function(){ return null; });
+  }
+  // 聴き比べストリップ。get(cond) が {url, dur} か null を返す
+  function fillStrip(stripId, noteId, get, okText){
+    var strip=document.getElementById(stripId);
+    if(!strip) return [];
+    var rows=Array.prototype.slice.call(strip.querySelectorAll(".urow"));
+    var missing=[], durs=[];
+    rows.forEach(function(row){
+      var got=get(row.dataset.cond);
+      if(got && got.dur) durs.push(got.dur);
+    });
+    var maxd=Math.max.apply(null, durs.concat([0.001]));
+    rows.forEach(function(row){
+      var slot=row.querySelector(".uplay"), got=get(row.dataset.cond);
+      slot.innerHTML="";
+      if(got && got.url){
+        var a=document.createElement("audio");
+        a.controls=true; a.preload="none"; a.src=got.url; slot.appendChild(a);
+        if(got.dur){
+          var w=document.createElement("div"); w.className="dur";
+          var b=document.createElement("div"); b.className="durbar";
+          var i=document.createElement("i"); i.style.width=(got.dur/maxd*100).toFixed(1)+"%";
+          b.appendChild(i); w.appendChild(b);
+          var t=document.createElement("div"); t.className="durtxt";
+          t.textContent=got.dur.toFixed(2)+" s";
+          w.appendChild(t); slot.appendChild(w);
+        }
+      }else{
+        missing.push(row.dataset.cond);
+        var d=document.createElement("div"); d.className="miss";
+        d.textContent="未接続"; slot.appendChild(d);
+      }
+    });
+    var n=noteId && document.getElementById(noteId);
+    if(n){
+      n.innerHTML = missing.length
+        ? ("鳴らない条件があります（"+missing.map(function(c){return "<code>"+c+"</code>";}).join(" / ")+
+           "）。<code>audio/</code> フォルダを作ると全部鳴ります —— "+
+           "<code>build_explainer_audio.py</code> を参照。")
+        : okText;
+    }
+    return missing;
+  }
+
+  // 旧経路（demo_data.js からの自動検出）用のアダプタ
+  function condRe(cond){
+    return cond==="D_mos"   ? /^D_mos$/
+         : cond==="D_avg10" ? /^D_avg/
+         : cond==="D_mosg15"? /^D_mosg/
+         : new RegExp("^"+cond+"$");
+  }
+  var STRIP_OK_TTS="内容もリズムも同一で、声色だけが違う。<code>D_mosg15</code> だけは殻の外なので、"+
+    "自然性の差（−0.130）が耳でも分かる場合がある。";
+  var STRIP_OK_VC="棒は発話長。<b>VC_mos は原音とほぼ同じ長さ</b>で、<code>D_mos</code> だけがずれる —— "+
+    "話し方を付け直しているのはどちらか、が目で分かる。";
+
+  // §04 のドナー聴き比べは別発話でもよい（D_real / D_avg10 / D_mosg15 は
+  // 別の書き出しにしか無いことがあるため）。donorGet があればそちらを優先する。
+  function fillAll(get, donorGet, donorNote){
+    fillStrip("ustrip","ustripNote", function(c){
+      var g = donorGet && donorGet(condRe(c));
+      return g || get(condRe(c));
+    }, (donorNote||"") + STRIP_OK_TTS);
+    fillStrip("vcstrip","vcstripNote",function(c){return get(condRe(c));},STRIP_OK_VC);
+    fillStrip("vcstrip2",null,function(c){return get(condRe(c));},"");
+  }
+  function join(p){
+    if(!p) return null;
+    if(/^(https?:|\.\/|\/)/.test(p)) return p;
+    return dir+p.replace(/^\.?\//,"");
+  }
+
+  // ① audio/audio_index.js があればそれを使う（いちばん確実な経路）
+  var EA = window.EXPLAINER_AUDIO;
+  if(EA && EA.items){
+    var adir = EA.dir || "./audio/";
+    var pick = function(cond){
+      var it = EA.items[cond];
+      return it ? {url: adir + it.file, dur: it.dur} : null;
+    };
+    var reGet = function(re){
+      for(var c in EA.items){ if(re.test(c)) return pick(c); }
+      return null;
+    };
+    if(EA.text) setText(EA.text);
+    var ref = pick("A1"), pub = pick("D_mos"), rec = reGet(/^R(_|$)/);
+    if(ref) document.getElementById("audRef").src = ref.url;
+    if(pub) document.getElementById("audPub").src = pub.url;
+    if(rec){ document.getElementById("audRec").src = rec.url;
+             document.getElementById("recovBar").hidden = false; }
+
+    var dGet = null, dNote = "";
+    if(EA.donor && EA.donor.items){
+      dGet = function(re){
+        for(var c in EA.donor.items){
+          if(re.test(c)) return {url: adir + EA.donor.items[c].file,
+                                 dur: EA.donor.items[c].dur};
+        }
+        return null;
+      };
+      dNote = "<b>この 5 つだけは別の発話</b>（この条件が揃っているのがそちらだけのため）。"+
+              "5 つの中では内容もリズムも同一。<br>";
+    }
+    fillAll(reGet, dGet, dNote);
+    if(!ref || !pub){
+      note.style.display="block";
+      note.innerHTML="<b>audio/audio_index.js は読めましたが、"+
+        (!ref?"<code>A1</code>":"<code>D_mos</code>")+" が入っていません。</b>"+
+        "<code>build_explainer_audio.py</code> の出力を確認してください。";
+    }
+    return;
+  }
+
+  // ② 手動指定が全部そろっていればそれを使う
+  if(AUDIO_OVERRIDE.ref && AUDIO_OVERRIDE.pub){
+    document.getElementById("audRef").src=join(AUDIO_OVERRIDE.ref);
+    document.getElementById("audPub").src=join(AUDIO_OVERRIDE.pub);
+    if(AUDIO_OVERRIDE.text) setText(AUDIO_OVERRIDE.text);
+    if(AUDIO_OVERRIDE.rec){
+      document.getElementById("audRec").src=join(AUDIO_OVERRIDE.rec);
+      document.getElementById("recovBar").hidden=false;
+    }
+    var S=AUDIO_OVERRIDE.strip||{};
+    fillAll(function(re){
+      for(var c in S){ if(S[c] && re.test(c)) return {url:join(S[c])}; }
+      if(re.test("A1")) return {url:join(AUDIO_OVERRIDE.ref)};
+      if(re.test("D_mos")) return {url:join(AUDIO_OVERRIDE.pub)};
+      return null;
+    });
+    return;
+  }
+
+  if(window.__DEMO_LOAD_FAILED || typeof window.DEMO==="undefined"){
+    fail("<code>demo_p2/demo_data.js</code> を読み込めませんでした。");
+    return;
+  }
+
+  // DEMO の中から wav を持つ項目を拾う（構造に依存しない走査）
+  var items=[];
+  (function walk(o,d,inheritedText,inheritedSpk){
+    if(!o||d>8||typeof o!=="object") return;
+    var txt=inheritedText, spk=inheritedSpk;
+    if(!Array.isArray(o)){
+      if(typeof o.text==="string" && o.text.trim()) txt=o.text;
+      if(typeof o.spk==="string"||typeof o.spk==="number") spk=String(o.spk);
+    }
+    if(Array.isArray(o)){ for(var i=0;i<o.length;i++) walk(o[i],d+1,txt,spk); return; }
+    var wav=null;
+    for(var k in o){ if(typeof o[k]==="string" && /\.wav(\?.*)?$/i.test(o[k])){ wav=o[k]; break; } }
+    if(wav) items.push({obj:o,wav:wav,text:txt,spk:spk});
+    for(var k2 in o){ if(o[k2] && typeof o[k2]==="object") walk(o[k2],d+1,txt,spk); }
+  })(window.DEMO,0,null,null);
+
+  // 条件タグ: 明示フィールド → wav のファイル名 の順に探す
+  var CONDRE=/(^|[^0-9A-Za-z])(A1|D_mos[0-9A-Za-z]*|D_avg[0-9A-Za-z]*|D_real|P_full[0-9A-Za-z]*|R_[0-9A-Za-z]+)($|[^0-9A-Za-z])/;
+  function condOf(it){
+    var v=["cond","condition","label","name"];
+    for(var i=0;i<v.length;i++){
+      var x=it.obj[v[i]];
+      if(typeof x==="string"){ var m=("/"+x+"/").match(CONDRE); if(m) return m[2]; }
+    }
+    var base=String(it.wav).split("/").pop();
+    var m2=("/"+base).match(CONDRE);
+    return m2 ? m2[2] : null;
+  }
+  // 同じ発話かどうかの照合鍵: uid があればそれ、無ければ条件名を除いたファイル名
+  function pairKey(it){
+    if(it.obj.uid) return "u:"+(it.spk||"")+"/"+it.obj.uid;
+    var base=String(it.wav).split("/").pop().replace(/\.wav$/i,"");
+    var c=condOf(it);
+    if(c) base=base.split(c).join("");
+    return "f:"+base.replace(/[^0-9A-Za-z]+/g,"");
+  }
+  items.forEach(function(it){ it.cond=condOf(it); it.pk=pairKey(it); });
+
+  var pub=items.filter(function(x){ return x.cond && /^D_mos$/.test(x.cond); })[0]
+          || items.filter(function(x){ return x.cond && /^D_mos/.test(x.cond); })[0];
+  if(!pub){ fail("読み込めましたが、公開条件 <code>D_mos</code> の音源が見つかりませんでした。"); return; }
+
+  function mate(re){
+    var same=items.filter(function(x){ return x.cond && re.test(x.cond) && x.pk===pub.pk; });
+    if(same.length) return same[0];
+    return items.filter(function(x){ return x.cond && re.test(x.cond); })[0] || null;
+  }
+  var ref=mate(/^A1$/), rec=mate(/^R_/);
+  if(!ref){ fail("読み込めましたが、参照条件 <code>A1</code> の音源が見つかりませんでした。"); return; }
+
+  document.getElementById("audRef").src=join(ref.wav);
+  document.getElementById("audPub").src=join(pub.wav);
+  var txt=AUDIO_OVERRIDE.text||pub.text||ref.text;
+  if(txt) setText(txt);
+  else { document.getElementById("txtLeft").textContent="書き起こし（そのまま公開）";
+         document.getElementById("txtRight").textContent="書き起こし（そのまま公開）"; }
+  if(rec){ document.getElementById("audRec").src=join(rec.wav); document.getElementById("recovBar").hidden=false; }
+
+  var S2=AUDIO_OVERRIDE.strip||{};
+  fillAll(function(re){
+    for(var c in S2){ if(S2[c] && re.test(c)) return {url:join(S2[c])}; }
+    var it=mate(re);
+    return it ? {url:join(it.wav)} : null;
+  });
+})();
+
+/* ══════════ §01 登場する 3 つのもの ══════════ */
+(function(){
+  var svg=document.getElementById("rolesSvg"); if(!svg) return;
+  var bw=170, bh=54;
+
+  // 上段: 公開の多人数コーパス → 話者モデル → virtual speaker
+  box(svg,16,52,bw,bh,"公開の多人数コーパス\n（誰でも入手できる）",{fill:C.panel});
+  box(svg,232,52,152,bh,"話者モデル\n個人性の空間",{stroke:C.teal,sw:1.3});
+  box(svg,440,52,152,bh,"virtual speaker\n（実在しない）",{fill:C.wash,stroke:C.teal,sw:1.3});
+  arrow(svg,190,52+bh/2,228,52+bh/2,{stroke:C.teal});
+  arrow(svg,388,52+bh/2,436,52+bh/2,{stroke:C.teal});
+  svg.appendChild(el("text",{x:412,y:44,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"鍵"));
+  svg.appendChild(el("text",{x:516,y:52+bh+17,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"学習話者の誰にも似ていない"));
+  svg.appendChild(el("text",{x:16,y:36,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"個人性は、公開されているものから学ぶ"));
+
+  // 下段: 対象コーパス → テキスト＋話し方
+  box(svg,16,186,bw,bh,"対象コーパス\n（生では配れない）",{fill:C.panel});
+  box(svg,232,186,152,bh,"テキスト＋話し方",{stroke:C.rule2});
+  arrow(svg,190,186+bh/2,228,186+bh/2);
+  svg.appendChild(el("text",{x:308,y:186+bh+17,"text-anchor":"middle",fill:C.ink3,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"話者はモデルにとって未知でよい"));
+  svg.appendChild(el("text",{x:16,y:170,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"守りたいものからは、内容と話し方だけを取る"));
+
+  // 合流 → 公開コーパス
+  box(svg,616,110,94,80,"公開\nコーパス\n（全部合成音）",{fill:C.wash,stroke:C.teal,sw:1.3,fs:"11.5"});
+  arrow(svg,596,52+bh/2,612,140,{stroke:C.teal});
+  arrow(svg,388,186+bh/2,612,168,{stroke:C.teal});
+})();
+
+/* ══════════ §05 2 つの経路 ══════════ */
+(function(){
+  var svg=document.getElementById("routesSvg"); if(!svg) return;
+  var VC="#6d3f74";
+  var bw=132, bh=46;
+
+  // ── TTS 経路 ──
+  svg.appendChild(el("text",{x:16,y:30,fill:C.teal,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"TTS 経路 — 作り直して配る"));
+  var y1=48;
+  box(svg,16,y1,bw,bh,"原音",{fill:C.panel});
+  box(svg,182,y1,bw,bh,"テキスト\n＋話し方",{stroke:C.rule2});
+  box(svg,348,y1,bw,bh,"合成モデル",{stroke:C.teal,sw:1.3});
+  box(svg,548,y1,bw,bh,"合成音",{fill:C.wash,stroke:C.teal,sw:1.3});
+  arrow(svg,152,y1+bh/2,178,y1+bh/2);
+  arrow(svg,318,y1+bh/2,344,y1+bh/2);
+  arrow(svg,484,y1+bh/2,544,y1+bh/2,{stroke:C.teal});
+  svg.appendChild(el("text",{x:414,y:y1+bh+17,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"擬似話者の行を書いて合成"));
+  svg.appendChild(el("text",{x:249,y:y1-6,"text-anchor":"middle",fill:C.ink3,"font-size":"10.5",
+    "font-family":"system-ui,sans-serif"},"書き起こしとアライメントが要る"));
+
+  // 区切り
+  svg.appendChild(el("line",{x1:16,y1:158,x2:704,y2:158,stroke:C.rule,"stroke-width":1}));
+
+  // ── VC 経路 ──
+  svg.appendChild(el("text",{x:16,y:186,fill:VC,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"VC 経路 — 変換して配る"));
+  var y2=204;
+  box(svg,16,y2,bw,bh,"原音",{fill:C.panel});
+  box(svg,348,y2,bw,bh,"フレームごとに\n置き換える",{stroke:VC,sw:1.3,color:VC});
+  box(svg,548,y2,bw,bh,"変換音",{fill:"#f2e9f3",stroke:VC,sw:1.3,color:VC});
+  arrow(svg,152,y2+bh/2,344,y2+bh/2,{stroke:VC});
+  arrow(svg,484,y2+bh/2,544,y2+bh/2,{stroke:VC});
+  svg.appendChild(el("text",{x:249,y:y2+bh/2-8,"text-anchor":"middle",fill:VC,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"音声のまま"));
+  svg.appendChild(el("text",{x:249,y:y2+bh/2+10,"text-anchor":"middle",fill:VC,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"（テキストを使わない）"));
+
+  // 擬似話者の見本
+  box(svg,348,y2+80,bw,34,"擬似話者の声の見本",{fill:C.wash,stroke:C.teal,sw:1.2,fs:"11.5"});
+  arrow(svg,414,y2+78,414,y2+bh+4,{stroke:C.teal});
+  svg.appendChild(el("text",{x:490,y:y2+101,fill:C.ink3,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"← 合成モデルはここだけに使う"));
+})();
+
+/* ══════════ §03-A モデル図 ══════════ */
+(function(){
+  var svg=document.getElementById("modelSvg"); if(!svg) return;
+  var bw=126,bh=44,y=44;
+  box(svg,20,y,96,bh,"テキスト",{fill:C.panel});
+  box(svg,150,y,bw,bh,"テキスト・\n音素エンコーダ");
+  box(svg,320,y,bw,bh,"デコーダ\n（波形生成）");
+  box(svg,490,y,bw,bh,"合成音声",{fill:C.panel});
+  box(svg,150,132,bw,40,"継続長予測器",{fs:"12"});
+  arrow(svg,116,y+bh/2,148,y+bh/2);
+  arrow(svg,276,y+bh/2,318,y+bh/2);
+  arrow(svg,446,y+bh/2,488,y+bh/2);
+  arrow(svg,213,130,213,y+bh+2);
+
+  // 埋め込み表
+  var tx=330,ty=210,tw=250,rh=9;
+  svg.appendChild(el("rect",{x:tx,y:ty,width:tw,height:rh*7+8,rx:2,fill:"#fff",stroke:C.teal,"stroke-width":1.4}));
+  for(var i=0;i<7;i++){
+    var yy=ty+4+i*rh;
+    var hit=(i===3);
+    svg.appendChild(el("rect",{x:tx+5,y:yy,width:tw-10,height:rh-2,
+      fill:hit?C.teal:C.panel,opacity:hit?1:0.85}));
+  }
+  svg.appendChild(el("text",{x:tx,y:ty-9,fill:C.teal,"font-size":"12",
+    "font-family":"system-ui,sans-serif"},"話者埋め込み表 emb_g　"+CORPUS.nSpk+" 行 × 512 次元"));
+  svg.appendChild(el("text",{x:tx+tw+10,y:ty+4+3*rh+7,fill:C.teal,"font-size":"11.5",
+    "font-family":"ui-monospace,Menlo,monospace"},"← e_src"));
+  svg.appendChild(el("text",{x:tx,y:ty+rh*7+24,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"話者 ID が行を引く。学習中はこの表も一緒に更新される"));
+
+  arrow(svg,tx+40,ty-4,383,y+bh+4,{stroke:C.teal,sw:1.6});
+  arrow(svg,tx-10,ty+20,278,160,{stroke:C.teal,sw:1.6});
+  svg.appendChild(el("text",{x:396,y:150,fill:C.teal,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"話者埋め込み（512 次元）"));
+
+  // 差し替え点
+  svg.appendChild(el("rect",{x:tx-8,y:ty-22,width:tw+16,height:rh*7+30,rx:3,
+    fill:"none",stroke:C.teal,"stroke-width":1,"stroke-dasharray":"4 3",opacity:.6}));
+  svg.appendChild(el("text",{x:20,y:222,fill:C.teal,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"仮名化が触るのは"));
+  svg.appendChild(el("text",{x:20,y:240,fill:C.teal,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"この 1 行だけ"));
+  arrow(svg,120,236,tx-12,ty+20,{stroke:C.teal,sw:1.4});
+})();
+
+/* ══════════ §04-A 多人数話者合成の学習 ══════════ */
+(function(){
+  var svg=document.getElementById("trainSvg"); if(!svg) return;
+
+  // 左: 375 話者の学習データ
+  svg.appendChild(el("text",{x:20,y:26,fill:C.ink2,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},CORPUS.short+" "+CORPUS.nSpk+" 話者の（音声, テキスト）"));
+  for(var i=0;i<5;i++){
+    var y=48+i*22;
+    svg.appendChild(el("rect",{x:20,y:y,width:150,height:15,rx:2,fill:"#fff",stroke:C.rule2,"stroke-width":1}));
+    // 簡易波形
+    var d="M26,"+(y+7.5), rnd=mulberry32(100+i);
+    for(var t=1;t<=28;t++){ d+=" L"+(26+t*4.4)+","+(y+7.5+(rnd()-0.5)*11); }
+    svg.appendChild(el("path",{d:d,fill:"none",stroke:C.rule2,"stroke-width":0.9}));
+  }
+  svg.appendChild(el("text",{x:20,y:175,fill:C.ink3,"font-size":"11","font-family":"ui-monospace,Menlo,monospace"},"⋮  "+CORPUS.nSpk+" 話者ぶん"));
+
+  // 中央: 学習
+  box(svg,215,88,120,48,"1 つのモデルを\n学習する",{stroke:C.teal,sw:1.3});
+  arrow(svg,176,112,211,112,{stroke:C.teal});
+
+  // 右: 分業
+  box(svg,400,40,290,54,"共有の重み",{fill:"#fff"});
+  svg.appendChild(el("text",{x:545,y:84,"text-anchor":"middle",fill:C.ink3,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"音素の並べ方・韻律の付け方・波形の作り方"));
+  box(svg,400,140,290,54,"話者埋め込み表　"+CORPUS.nSpk+" 行 × 512 次元",
+    {fill:C.wash,stroke:C.teal,sw:1.3,fs:"12.5"});
+  svg.appendChild(el("text",{x:545,y:184,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"声色だけがここに集まる"));
+
+  arrow(svg,339,102,396,66,{stroke:C.teal});
+  arrow(svg,339,122,396,160,{stroke:C.teal});
+  svg.appendChild(el("text",{x:352,y:222,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"同じ音素を違う話者が話す例が大量にあるので、この分業が起きる"));
+})();
+
+/* ══════════ §04-B 通っている向き / 無い向き ══════════ */
+(function(){
+  var svg=document.getElementById("dirSvg"); if(!svg) return;
+  var WARM="#8a5a4e", WARMBG="#f0e9e7";
+
+  // ── 上段: 通っている向き ──
+  svg.appendChild(el("text",{x:20,y:30,fill:C.teal,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"通っている向き　埋め込み → 音声"));
+  var y1=52, bh=48;
+  box(svg,40,y1,196,bh,"話者埋め込み e\n（512 次元の 1 行）",{stroke:C.teal,sw:1.3,fs:"12"});
+  box(svg,300,y1,140,bh,"合成器",{stroke:C.teal,sw:1.3});
+  box(svg,504,y1,150,bh,"音声",{fill:C.wash,stroke:C.teal,sw:1.3});
+  arrow(svg,240,y1+bh/2,296,y1+bh/2,{stroke:C.teal,sw:1.8});
+  arrow(svg,444,y1+bh/2,500,y1+bh/2,{stroke:C.teal,sw:1.8});
+  svg.appendChild(el("text",{x:138,y:y1+bh+18,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"任意のベクトルを書き込める"));
+
+  // ── 下段: 無い向き ──
+  var y2=176;
+  svg.appendChild(el("text",{x:20,y:158,fill:WARM,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"無い向き　音声 → 埋め込み"));
+  box(svg,40,y2,196,bh,"その人の埋め込み e_U",
+    {stroke:WARM,sw:1.2,dash:"5 3",fill:WARMBG,color:WARM,fs:"12"});
+  box(svg,504,y2,150,bh,"発話 U（実音声）",
+    {stroke:WARM,sw:1.2,dash:"5 3",fill:WARMBG,color:WARM,fs:"12"});
+  svg.appendChild(el("path",{d:"M500,"+(y2+bh/2)+" L246,"+(y2+bh/2),
+    fill:"none",stroke:WARM,"stroke-width":1.4,"stroke-dasharray":"5 4"}));
+  svg.appendChild(el("path",{d:"M240,"+(y2+bh/2)+" l7,-4.5 v9 z",fill:WARM}));
+
+  // ✕ バッジ
+  var cxx=373, cyy=y2+bh/2;
+  svg.appendChild(el("circle",{cx:cxx,cy:cyy,r:15,fill:WARMBG,stroke:WARM,"stroke-width":1.4}));
+  svg.appendChild(el("path",{d:"M"+(cxx-6)+","+(cyy-6)+" L"+(cxx+6)+","+(cyy+6)+
+    " M"+(cxx+6)+","+(cyy-6)+" L"+(cxx-6)+","+(cyy+6),stroke:WARM,"stroke-width":2}));
+  svg.appendChild(el("text",{x:cxx,y:cyy-24,"text-anchor":"middle",fill:WARM,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"参照音声から行を推定する段が"));
+  svg.appendChild(el("text",{x:cxx,y:cyy+34,"text-anchor":"middle",fill:WARM,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"この構成には入っていない"));
+
+  svg.appendChild(el("text",{x:20,y:276,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},
+    "期待される往復（U → e_U → U のテキストで再合成 → U と比較）は、下段が通っていることを前提にしている"));
+})();
+
+/* ══════════ §04-B 中心からの距離と自然性 ══════════ */
+(function(){
+  var svg=document.getElementById("shellSvg"); if(!svg) return;
+  var W=720,H=340,ml=64,mr=176,mt=26,mb=56;
+  var XMAX=1.62, YTOP=0.40, YBOT=-0.22;
+  function X(r){ return ml+r/XMAX*(W-ml-mr); }
+  function Y(v){ return mt+(YTOP-v)/(YTOP-YBOT)*(H-mt-mb); }
+
+  // 球殻の帯（19.30 / 20.16 = 0.957, 20.96 / 20.16 = 1.040）
+  svg.appendChild(el("rect",{x:X(0.957),y:mt,width:X(1.040)-X(0.957),height:H-mt-mb,
+    fill:C.teal,opacity:"0.10"}));
+  svg.appendChild(el("text",{x:X(0.999),y:mt-9,"text-anchor":"middle",fill:C.teal,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"実話者の球殻"));
+
+  // 軸
+  svg.appendChild(el("line",{x1:ml,y1:Y(0),x2:W-mr,y2:Y(0),stroke:C.ink3,"stroke-width":1}));
+  svg.appendChild(el("text",{x:ml-6,y:Y(0)+4,"text-anchor":"end",fill:C.ink3,"font-size":"11",
+    "font-family":"ui-monospace,Menlo,monospace"},"0"));
+  svg.appendChild(el("text",{x:ml,y:Y(0)-8,fill:C.ink3,"font-size":"10.5",
+    "font-family":"system-ui,sans-serif"},"A1（学習話者本人）と同じ"));
+  [0.4,0.2,-0.2].forEach(function(v){
+    svg.appendChild(el("line",{x1:ml,y1:Y(v),x2:W-mr,y2:Y(v),stroke:C.rule,"stroke-width":1,opacity:"0.7"}));
+    svg.appendChild(el("text",{x:ml-6,y:Y(v)+4,"text-anchor":"end",fill:C.ink3,"font-size":"11",
+      "font-family":"ui-monospace,Menlo,monospace"},(v>0?"+":"")+v.toFixed(1)));
+  });
+  [0,0.5,1.0,1.5].forEach(function(r){
+    svg.appendChild(el("line",{x1:X(r),y1:mt,x2:X(r),y2:H-mb,stroke:C.rule,"stroke-width":1,opacity:"0.5"}));
+    svg.appendChild(el("text",{x:X(r),y:H-mb+18,"text-anchor":"middle",fill:C.ink3,"font-size":"11",
+      "font-family":"ui-monospace,Menlo,monospace"},r.toFixed(1)));
+  });
+  svg.appendChild(el("text",{x:(ml+W-mr)/2,y:H-14,"text-anchor":"middle",fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"中心からの距離（実話者を 1 とした残差比）→"));
+  svg.appendChild(el("text",{x:16,y:mt-9,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"自然性の差（UTMOS）"));
+
+  var pts=[
+    {r:0.311,d:0.316,lo:0.272,hi:0.363,n:"D_avg10",s:"平均 10 名",sig:1,ly:0},
+    {r:0.993,d:0.122,lo:0.066,hi:0.180,n:"D_mos",  s:"モザイク（公開条件）",sig:1,ly:1},
+    {r:1.000,d:0.027,lo:-0.031,hi:0.090,n:"D_real",s:"実話者ドナー",sig:0,ly:2},
+    {r:1.490,d:-0.130,lo:-0.197,hi:-0.065,n:"D_mosg15",s:"モザイク＋利得 1.5",sig:1,ly:3}
+  ];
+  var lx=W-mr+10, ly0=mt+22, lgap=44;
+  pts.forEach(function(p){
+    var x=X(p.r), col=p.sig?C.teal:C.ink3;
+    svg.appendChild(el("line",{x1:x,y1:Y(p.hi),x2:x,y2:Y(p.lo),stroke:col,"stroke-width":1.6}));
+    svg.appendChild(el("line",{x1:x-5,y1:Y(p.hi),x2:x+5,y2:Y(p.hi),stroke:col,"stroke-width":1.6}));
+    svg.appendChild(el("line",{x1:x-5,y1:Y(p.lo),x2:x+5,y2:Y(p.lo),stroke:col,"stroke-width":1.6}));
+    svg.appendChild(el("circle",{cx:x,cy:Y(p.d),r:5,fill:p.sig?col:"#fff",stroke:col,"stroke-width":1.8}));
+    // 右側の凡例へ引き出す
+    var yl=ly0+p.ly*lgap;
+    svg.appendChild(el("path",{d:"M"+(x+7)+","+Y(p.d)+" L"+(lx-8)+","+yl,
+      fill:"none",stroke:col,"stroke-width":0.9,opacity:"0.55"}));
+    svg.appendChild(el("text",{x:lx,y:yl-3,fill:col,"font-size":"11.5",
+      "font-family":"ui-monospace,Menlo,monospace"},p.n));
+    svg.appendChild(el("text",{x:lx,y:yl+11,fill:C.ink3,"font-size":"10.5",
+      "font-family":"system-ui,sans-serif"},p.s));
+    svg.appendChild(el("text",{x:lx,y:yl+24,fill:col,"font-size":"11",
+      "font-family":"ui-monospace,Menlo,monospace"},
+      (p.d>0?"+":"")+p.d.toFixed(3)+(p.sig?"":"（0 跨ぎ）")));
+  });
+})();
+
+/* ══════════ 主成分座標の模擬生成（実測スペクトルを再現） ══════════ */
+var SPEC=[0.0111,0.0106,0.0099,0.0093,0.0089];  // 実測の上位5寄与率
+var RSHELL=20.16;                                // 実測の残差ノルム中央値
+function pcCoords(n,seed,scale){
+  var rnd=mulberry32(seed), out=[];
+  var s1=RSHELL*Math.sqrt(SPEC[0]), s2=RSHELL*Math.sqrt(SPEC[1]);
+  for(var i=0;i<n;i++){
+    out.push([gauss(rnd)*s1*scale, gauss(rnd)*s2*scale]);
+  }
+  return out;
+}
+
+/* ══════════ §03-B 主成分平面 ══════════ */
+(function(){
+  var svg=document.getElementById("pcaSvg"); if(!svg) return;
+  var W=720,H=380,cx=258,cy=190,u=24;   // u = 1 単位あたりの px
+  // 軸
+  svg.appendChild(el("line",{x1:cx-190,y1:cy,x2:cx+190,y2:cy,stroke:C.rule2,"stroke-width":1}));
+  svg.appendChild(el("line",{x1:cx,y1:cy-152,x2:cx,y2:cy+152,stroke:C.rule2,"stroke-width":1}));
+  svg.appendChild(el("text",{x:cx+196,y:cy+4,fill:C.ink3,"font-size":"11.5",
+    "font-family":"ui-monospace,Menlo,monospace"},"PC1"));
+  svg.appendChild(el("text",{x:cx+5,y:cy-158,fill:C.ink3,"font-size":"11.5",
+    "font-family":"ui-monospace,Menlo,monospace"},"PC2"));
+
+  var pts=pcCoords(375,7,1);
+  pts.forEach(function(p){
+    var x=cx+p[0]*u, y=cy-p[1]*u;
+    if(x<cx-190||x>cx+190||y<cy-152||y>cy+152) return;
+    svg.appendChild(el("circle",{cx:x.toFixed(1),cy:y.toFixed(1),r:2.6,fill:C.ink3,opacity:"0.5"}));
+  });
+  svg.appendChild(el("text",{x:20,y:26,fill:C.ink2,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"375 話者を主成分 1・2 平面へ投影"));
+
+  // 固有値スペクトル
+  var bx=536,by=54,bw2=110,bh2=90;
+  svg.appendChild(el("text",{x:bx,y:by-10,fill:C.ink3,"font-size":"11",
+    "font-family":"ui-monospace,Menlo,monospace"},"寄与率（上位 5）"));
+  var mx=0.0125;
+  SPEC.forEach(function(v,i){
+    var h=v/mx*bh2;
+    svg.appendChild(el("rect",{x:bx+i*20,y:by+bh2-h,width:13,height:h,fill:C.teal,opacity:"0.75"}));
+  });
+  var uy=by+bh2-(0.0027/mx)*bh2;
+  svg.appendChild(el("line",{x1:bx-4,y1:uy,x2:bx+bw2,y2:uy,stroke:C.ink3,"stroke-width":1,"stroke-dasharray":"3 3"}));
+  svg.appendChild(el("text",{x:bx,y:uy-5,fill:C.ink3,"font-size":"10",
+    "font-family":"ui-monospace,Menlo,monospace"},"一様 0.0027"));
+  svg.appendChild(el("text",{x:bx,y:by+bh2+15,fill:C.ink3,"font-size":"10",
+    "font-family":"ui-monospace,Menlo,monospace"},"PC1 … PC5"));
+  svg.appendChild(el("text",{x:bx,y:by+bh2+32,fill:C.ink3,"font-size":"10.5",
+    "font-family":"system-ui,sans-serif"},"平坦 ＝ 特定方向に"));
+  svg.appendChild(el("text",{x:bx,y:by+bh2+47,fill:C.ink3,"font-size":"10.5",
+    "font-family":"system-ui,sans-serif"},"偏った構造が無い"));
+})();
+
+/* ══════════ §06 ギャラリ生成の 4 段 ══════════ */
+(function(){
+  var svg=document.getElementById("galSvg"); if(!svg) return;
+  var y=70,bh=54,xs=[24,190,356,522],bw=150;
+  var labs=[
+    ["候補話者 i","表から e_src を引く"],
+    ["鍵で写す","g = G(key, spk_i)"],
+    ["合成する","g で n_e 発話ぶん"],
+    ["測る","話者特徴ベクトル"]
+  ];
+  labs.forEach(function(L,i){
+    var fill = i===0 ? C.panel : (i===3 ? "#fff" : "#fff");
+    box(svg,xs[i],y,bw,bh,L[0],{fill:fill,stroke:i===0?C.rule2:C.teal,sw:i===0?1:1.3});
+    svg.appendChild(el("text",{x:xs[i]+bw/2,y:y+bh+17,"text-anchor":"middle",
+      fill:C.ink3,"font-size":"11","font-family":"ui-monospace,Menlo,monospace"},L[1]));
+    if(i<3) arrow(svg,xs[i]+bw+4,y+bh/2,xs[i+1]-4,y+bh/2,{stroke:C.teal});
+  });
+  svg.appendChild(el("text",{x:24,y:34,fill:C.teal,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"擬似ギャラリの 1 項目を作る"));
+
+  // 出力
+  box(svg,522,178,bw,40,"ギャラリ項目 ḡ(i)",{fill:C.wash,stroke:C.teal,sw:1.3,fs:"12"});
+  arrow(svg,597,y+bh+26,597,174,{stroke:C.teal});
+  svg.appendChild(el("text",{x:24,y:200,fill:C.ink2,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"これを候補 80 人ぶん繰り返す → 台帳（80 本のベクトル）"));
+  svg.appendChild(el("text",{x:24,y:222,fill:C.ink3,"font-size":"11.5",
+    "font-family":"system-ui,sans-serif"},"鍵とモデルがあればいつでも作り直せるので、保存しておく必要はない"));
+})();
+
+/* ══════════ §06 台帳 ══════════ */
+(function(){
+  var svg=document.getElementById("ledgerSvg");
+  var read=document.getElementById("ledgerRead");
+  var bar=document.querySelector(".ledger-bar");
+  if(!svg||!read||!bar) return;
+
+  var N=8, TRUTH=3;
+  var PERM_RIGHT=[5,2,7,0,4,1,6,3];
+  var PERM_WRONG=[1,6,3,5,0,7,2,4];
+  var names=["話者 10","話者 100","話者 1000","話者 1004","話者 1005","話者 1011","話者 1015","話者 1027"];
+  var H=380,top=70,gap=30,lx=150,rx=470,bw=132,bh=23,routeX=664;
+  function rowY(i){ return top+i*gap; }
+
+  function render(state){
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.appendChild(el("text",{x:lx,y:30,fill:C.ink3,"font-size":"11.5",
+      "font-family":"ui-monospace,Menlo,monospace"},"候補話者"));
+    svg.appendChild(el("text",{x:rx,y:30,fill:state==="none"?C.ink3:C.teal,"font-size":"11.5",
+      "font-family":"ui-monospace,Menlo,monospace"},
+      state==="none"?"擬似ギャラリ（作れない）":"擬似ギャラリ"));
+    svg.appendChild(el("text",{x:rx,y:47,fill:C.ink3,"font-size":"10.5",
+      "font-family":"system-ui,sans-serif"},
+      state==="none"?"鍵が無いので 4 段が回せない":"鍵で写して合成し、測ったベクトル"));
+
+    var perm = state==="wrong" ? PERM_WRONG : PERM_RIGHT;
+    var landed = state==="right" ? TRUTH : (state==="wrong" ? 6 : -1);
+
+    if(state!=="none"){
+      for(var i=0;i<N;i++){
+        var y1=rowY(i), y2=rowY(perm[i]), x1=lx+bw, x2=rx, mid=(x1+x2)/2;
+        var on=(i===landed);
+        svg.appendChild(el("path",{d:"M"+x1+","+y1+" C"+mid+","+y1+" "+mid+","+y2+" "+x2+","+y2,
+          fill:"none",stroke:on?C.teal:C.rule,"stroke-width":on?2:1,opacity:on?1:0.85}));
+      }
+      svg.appendChild(el("text",{x:(lx+bw+rx)/2,y:rowY(N-1)+34,"text-anchor":"middle",
+        fill:C.ink3,"font-size":"11","font-family":"system-ui,sans-serif"},"細線＝鍵が決めた写り先（全単射）"));
+    }
+
+    for(var j=0;j<N;j++){
+      var y=rowY(j), isTruth=(j===TRUTH), isLanded=(j===landed);
+      svg.appendChild(el("rect",{x:lx,y:y-bh/2,width:bw,height:bh,rx:2,
+        fill:isLanded?C.teal:"#fff",stroke:isLanded?C.teal:(isTruth?C.ink3:C.rule),
+        "stroke-width":1,"stroke-dasharray":(isTruth&&!isLanded)?"3 2":"none"}));
+      svg.appendChild(el("text",{x:lx+11,y:y+4,fill:isLanded?"#fff":C.ink,"font-size":"12.5",
+        "font-family":"system-ui,sans-serif"},names[j]));
+      if(isTruth){
+        svg.appendChild(el("text",{x:lx-9,y:y+4,fill:C.ink3,"font-size":"11","text-anchor":"end",
+          "font-family":"system-ui,sans-serif"},"本当の持ち主"));
+      }
+      var empty=(state==="none");
+      svg.appendChild(el("rect",{x:rx,y:y-bh/2,width:bw,height:bh,rx:2,
+        fill:empty?"none":"#fff",stroke:C.rule,"stroke-width":1,
+        "stroke-dasharray":empty?"4 3":"none",opacity:empty?0.6:1}));
+      if(!empty){
+        svg.appendChild(el("text",{x:rx+11,y:y+4,fill:C.ink3,"font-size":"11.5",
+          "font-family":"ui-monospace,Menlo,monospace"},"ḡ("+(j+1)+")　[256 次元]"));
+      }
+    }
+
+    var oy=H-30, ox=rx;
+    svg.appendChild(el("rect",{x:ox,y:oy-bh/2,width:bw,height:bh,rx:2,
+      fill:C.panel,stroke:C.ink3,"stroke-width":1}));
+    svg.appendChild(el("text",{x:ox+11,y:oy+4,fill:C.ink,"font-size":"12",
+      "font-family":"system-ui,sans-serif"},"観測ベクトル x̄"));
+    svg.appendChild(el("text",{x:ox,y:oy-20,fill:C.ink3,"font-size":"11.5",
+      "font-family":"system-ui,sans-serif"},"公開音声を同じ抽出器で測ったもの"));
+
+    if(state!=="none"){
+      var hitRow = state==="right" ? PERM_RIGHT[TRUTH] : PERM_WRONG[6];
+      var hy=rowY(hitRow);
+      svg.appendChild(el("path",{d:"M"+(ox+bw)+","+oy+" L"+routeX+","+oy+" L"+routeX+","+hy+" L"+(rx+bw+6)+","+hy,
+        fill:"none",stroke:C.teal,"stroke-width":2,"stroke-linejoin":"round"}));
+      svg.appendChild(el("path",{d:"M"+(rx+bw)+","+hy+" l7,-4.5 v9 z",fill:C.teal}));
+      var my=(oy+hy)/2;
+      svg.appendChild(el("text",{x:routeX-7,y:my,fill:C.teal,"font-size":"11.5","text-anchor":"middle",
+        "font-family":"system-ui,sans-serif",transform:"rotate(-90 "+(routeX-7)+" "+my+")"},
+        "cosine が最大の 1 本"));
+    }else{
+      svg.appendChild(el("text",{x:ox+bw+14,y:oy+4,fill:C.ink3,"font-size":"11.5",
+        "font-family":"system-ui,sans-serif"},"照合先が無い"));
+    }
+  }
+
+  var texts={
+    none:'<span class="verdict">台帳そのものが作れない</span>鍵が無いと §06 の 4 段が回せない ——どの擬似埋め込みで合成すればよいかが決まらないので、右の列が空のままになる。照合の相手が存在しないので、当てるという操作自体が成立しない。実測の rank-1 は <b>1.25%</b> ＝ 候補 80 人の当てずっぽうちょうど。',
+    wrong:'<span class="verdict">台帳はできるが、中身が違う</span>別の鍵は別の全単射を作るので、4 段は回るが出てくるベクトルが別物になる。照合は最後まで走って 1 人を返すが、それは元の話者と関係のない誰か。実測の rank-1 は <b>1.25–2.50%</b> で、当てずっぽうと区別がつかない。',
+    right:'<span class="verdict">写り先が一致し、引き戻せる</span>観測ベクトルと cosine が最大になるギャラリ項目が、元の話者を鍵で写して作ったもの本人になる。その項目がどの候補から作られたかは分かっているので、左の名前へ引き戻せる。実測の rank-1 は <b>100%</b>（ギャラリ 36 / 観測 4）。'
+  };
+  function set(state){
+    Array.prototype.forEach.call(bar.querySelectorAll("button"),function(b){
+      b.setAttribute("aria-pressed", b.dataset.state===state ? "true":"false");
+    });
+    render(state); read.innerHTML=texts[state];
+  }
+  bar.addEventListener("click",function(ev){
+    var b=ev.target.closest("button"); if(b) set(b.dataset.state);
+  });
+  set("right");
+})();
+
+/* ══════════ §08 法則 ══════════ */
+(function(){
+  var svg=document.getElementById("lawSvg"), kSel=document.getElementById("kSel"),
+      neR=document.getElementById("neRange"), ntSeg=document.getElementById("ntSeg");
+  if(!svg||!kSel||!neR||!ntSeg) return;
+  var W=720,H=380,ml=58,mr=126,mt=18,mb=46,TOP=100,BOT=0.01,NEMAX=40;
+  var state={k:3.93,ne:37,nt:1};
+  function X(ne){ return ml+(ne-1)/(NEMAX-1)*(W-ml-mr); }
+  function Y(p){
+    var q=Math.min(TOP,Math.max(BOT,p));
+    return mt+(Math.log10(TOP)-Math.log10(q))/(Math.log10(TOP)-Math.log10(BOT))*(H-mt-mb);
+  }
+  function draw(){
+    while(svg.firstChild) svg.removeChild(svg.firstChild);
+    svg.appendChild(el("rect",{x:ml,y:Y(0.6),width:W-ml-mr,height:Y(BOT)-Y(0.6),fill:"#131d1c",opacity:"0.05"}));
+    svg.appendChild(el("text",{x:ml+8,y:Y(0.6)+15,fill:C.ink3,"font-size":"10.5",
+      "font-family":"ui-monospace,Menlo,monospace"},"測定分解能 0.6%（80 話者）より下は外挿"));
+    [100,10,1,0.1,0.01].forEach(function(g){
+      var y=Y(g);
+      svg.appendChild(el("line",{x1:ml,y1:y,x2:W-mr,y2:y,stroke:C.rule,"stroke-width":1}));
+      svg.appendChild(el("text",{x:ml-9,y:y+4,fill:C.ink3,"font-size":"11","text-anchor":"end",
+        "font-family":"ui-monospace,Menlo,monospace"},g+"%"));
+    });
+    [1,10,20,30,40].forEach(function(g){
+      var x=X(g);
+      svg.appendChild(el("line",{x1:x,y1:mt,x2:x,y2:H-mb,stroke:C.rule,"stroke-width":1,opacity:"0.55"}));
+      svg.appendChild(el("text",{x:x,y:H-mb+19,fill:C.ink3,"font-size":"11","text-anchor":"middle",
+        "font-family":"ui-monospace,Menlo,monospace"},g));
+    });
+    svg.appendChild(el("text",{x:(ml+W-mr)/2,y:H-8,fill:C.ink3,"font-size":"11.5","text-anchor":"middle",
+      "font-family":"system-ui,sans-serif"},"ギャラリの発話数 nₑ →（鍵を持つ側が自由に増やせる）"));
+    [1,2,3,4].forEach(function(nt){
+      var cur=(nt===state.nt), d="";
+      for(var i=1;i<=NEMAX;i++) d+=(i===1?"M":"L")+X(i).toFixed(1)+","+Y(eerPct(state.k,i,nt)).toFixed(1);
+      svg.appendChild(el("path",{d:d,fill:"none",stroke:cur?C.teal:C.rule2,
+        "stroke-width":cur?2.4:1.2,opacity:cur?1:0.75}));
+      var fp=100*(1-Phi(state.k*Math.sqrt(nt)/2)), fy=Y(fp);
+      svg.appendChild(el("line",{x1:ml,y1:fy,x2:W-mr,y2:fy,stroke:cur?C.teal:C.rule2,
+        "stroke-width":1,"stroke-dasharray":"3 3",opacity:cur?0.8:0.4}));
+      svg.appendChild(el("text",{x:W-mr+8,y:fy+4,fill:cur?C.teal:C.ink3,"font-size":"11",
+        "font-family":"ui-monospace,Menlo,monospace"},"n\u209C="+nt+"  "+(fp<0.01?"<0.01":fp.toFixed(2))+"%"));
+    });
+    var px=X(state.ne), py=Y(eerPct(state.k,state.ne,state.nt));
+    svg.appendChild(el("line",{x1:px,y1:mt,x2:px,y2:H-mb,stroke:C.teal,"stroke-width":1,opacity:"0.35"}));
+    svg.appendChild(el("circle",{cx:px,cy:py,r:5.5,fill:"#fff",stroke:C.teal,"stroke-width":2.4}));
+  }
+  function update(){
+    var v=1/state.ne+1/state.nt, d=state.k/Math.sqrt(v);
+    document.getElementById("vOut").textContent=v.toFixed(3);
+    document.getElementById("dOut").textContent=d.toFixed(2);
+    document.getElementById("eOut").innerHTML=fmtEER(100*(1-Phi(d/2)));
+    document.getElementById("fOut").innerHTML=fmtEER(100*(1-Phi(state.k*Math.sqrt(state.nt)/2)));
+    document.getElementById("neOut").textContent=state.ne;
+    draw();
+  }
+  kSel.addEventListener("change",function(){ state.k=parseFloat(kSel.value); update(); });
+  neR.addEventListener("input",function(){ state.ne=parseInt(neR.value,10); update(); });
+  ntSeg.addEventListener("click",function(ev){
+    var b=ev.target.closest("button"); if(!b) return;
+    state.nt=parseInt(b.dataset.nt,10);
+    Array.prototype.forEach.call(ntSeg.querySelectorAll("button"),function(x){
+      x.setAttribute("aria-pressed", x===b ? "true":"false"); });
+    update();
+  });
+  update();
+})();
+
+/* ══════════ §09 モザイクの作り方 ══════════ */
+(function(){
+  var svg=document.getElementById("mosaicSvg"); if(!svg) return;
+  var PCN=10, SPKN=6, cw=52, rh=30, x0=118, y0=64;
+  var rnd=mulberry32(2026);
+  var vals=[], i, j;
+  for(i=0;i<SPKN;i++){ var row=[]; for(j=0;j<PCN;j++) row.push(Math.max(-1,Math.min(1,gauss(rnd)/2.2))); vals.push(row); }
+  var pickRow=[]; var r2=mulberry32(99);
+  for(j=0;j<PCN;j++) pickRow.push(Math.floor(r2()*SPKN));
+
+  function bar(x,yc,v,opt){
+    opt=opt||{};
+    var maxw=cw/2-7, w=Math.abs(v)*maxw;
+    svg.appendChild(el("line",{x1:x+cw/2,y1:yc-9,x2:x+cw/2,y2:yc+9,stroke:C.rule,"stroke-width":1}));
+    svg.appendChild(el("rect",{x:v>=0?x+cw/2:x+cw/2-w,y:yc-5,width:Math.max(w,1.2),height:10,
+      fill:opt.color||(v>=0?C.teal:C.rule2),opacity:opt.op||0.85}));
+  }
+
+  // 列見出し
+  for(j=0;j<PCN;j++){
+    svg.appendChild(el("text",{x:x0+j*cw+cw/2,y:y0-16,"text-anchor":"middle",fill:C.ink3,"font-size":"10",
+      "font-family":"ui-monospace,Menlo,monospace"},"PC"+(j+1)));
+  }
+  svg.appendChild(el("text",{x:x0+PCN*cw+10,y:y0-16,fill:C.ink3,"font-size":"10",
+    "font-family":"ui-monospace,Menlo,monospace"},"… PC374"));
+  svg.appendChild(el("text",{x:20,y:26,fill:C.ink2,"font-size":"12.5",
+    "font-family":"system-ui,sans-serif"},"実話者の座標（主成分ごとの値）"));
+
+  // 実話者の行
+  for(i=0;i<SPKN;i++){
+    var yc=y0+i*rh+rh/2;
+    svg.appendChild(el("text",{x:x0-10,y:yc+4,"text-anchor":"end",fill:C.ink2,"font-size":"11.5",
+      "font-family":"system-ui,sans-serif"},"話者 "+String.fromCharCode(65+i)));
+    for(j=0;j<PCN;j++){
+      var sel=(pickRow[j]===i);
+      if(sel){
+        svg.appendChild(el("rect",{x:x0+j*cw+2,y:yc-13,width:cw-4,height:26,rx:2,
+          fill:C.wash,stroke:C.teal,"stroke-width":1.4}));
+      }
+      bar(x0+j*cw,yc,vals[i][j],{op:sel?1:0.4});
+    }
+    svg.appendChild(el("text",{x:x0+PCN*cw+14,y:yc+4,fill:C.rule2,"font-size":"11",
+      "font-family":"ui-monospace,Menlo,monospace"},"…"));
+  }
+
+  // 結果行
+  var yM=y0+SPKN*rh+34;
+  svg.appendChild(el("line",{x1:x0-96,y1:yM-20,x2:x0+PCN*cw+40,y2:yM-20,stroke:C.rule2,"stroke-width":1}));
+  svg.appendChild(el("text",{x:x0-10,y:yM+16,"text-anchor":"end",fill:C.teal,"font-size":"12",
+    "font-family":"system-ui,sans-serif"},"モザイク擬似話者"));
+  for(j=0;j<PCN;j++){
+    svg.appendChild(el("rect",{x:x0+j*cw+2,y:yM-1,width:cw-4,height:26,rx:2,fill:C.wash}));
+    bar(x0+j*cw,yM+12,vals[pickRow[j]][j],{op:1});
+    svg.appendChild(el("text",{x:x0+j*cw+cw/2,y:yM+38,"text-anchor":"middle",fill:C.teal,"font-size":"9.5",
+      "font-family":"ui-monospace,Menlo,monospace"},String.fromCharCode(65+pickRow[j])));
+  }
+  svg.appendChild(el("text",{x:x0+PCN*cw+14,y:yM+16,fill:C.teal,"font-size":"11",
+    "font-family":"ui-monospace,Menlo,monospace"},"…"));
+  svg.appendChild(el("text",{x:x0-10,y:yM+42,"text-anchor":"end",fill:C.ink3,"font-size":"10",
+    "font-family":"system-ui,sans-serif"},"← 借りた相手"));
+
+  // 平均行
+  var yA=yM+72;
+  svg.appendChild(el("text",{x:x0-10,y:yA+16,"text-anchor":"end",fill:C.ink3,"font-size":"12",
+    "font-family":"system-ui,sans-serif"},"平均 10 名（比較）"));
+  for(j=0;j<PCN;j++){
+    var s=0; for(i=0;i<SPKN;i++) s+=vals[i][j];
+    bar(x0+j*cw,yA+12,s/SPKN/1.6,{color:C.rule2,op:0.9});
+  }
+  svg.appendChild(el("text",{x:x0+PCN*cw+14,y:yA+16,fill:C.rule2,"font-size":"11",
+    "font-family":"ui-monospace,Menlo,monospace"},"…"));
+  svg.appendChild(el("text",{x:x0,y:yA+42,fill:C.ink3,"font-size":"11",
+    "font-family":"system-ui,sans-serif"},"どの列も 0 に近づく ＝ 誰を平均しても似たものになる"));
+})();
+
+/* ══════════ §09 3 枚の分布 ══════════ */
+(function(){
+  var specs={real:{scale:1.00,seed:7,color:C.ink3,op:"0.5"},
+             avg:{scale:0.311,seed:41,color:C.teal,op:"0.7"},
+             mos:{scale:0.993,seed:23,color:C.teal,op:"0.7"}};
+  Array.prototype.forEach.call(document.querySelectorAll("[data-cloud]"),function(svg){
+    var sp=specs[svg.getAttribute("data-cloud")];
+    var cx=110,cy=88,u=13.5;
+    svg.appendChild(el("line",{x1:cx-95,y1:cy,x2:cx+95,y2:cy,stroke:C.rule,"stroke-width":1}));
+    svg.appendChild(el("line",{x1:cx,y1:cy-72,x2:cx,y2:cy+72,stroke:C.rule,"stroke-width":1}));
+    svg.appendChild(el("circle",{cx:cx,cy:cy,r:2.3*RSHELL*Math.sqrt(SPEC[0])*u,fill:"none",
+      stroke:C.rule2,"stroke-width":1,"stroke-dasharray":"3 3",opacity:"0.85"}));
+    pcCoords(160,sp.seed,sp.scale).forEach(function(p){
+      var x=cx+p[0]*u, y=cy-p[1]*u;
+      if(x<12||x>208||y<14||y>162) return;
+      svg.appendChild(el("circle",{cx:x.toFixed(1),cy:y.toFixed(1),r:2.4,fill:sp.color,opacity:sp.op}));
+    });
+    svg.appendChild(el("text",{x:cx,y:186,fill:C.ink3,"font-size":"9.5","text-anchor":"middle",
+      "font-family":"ui-monospace,Menlo,monospace"},"PC1 × PC2　破線＝実話者の広がり"));
+  });
+})();
+</script>
+</body>
+</html>
