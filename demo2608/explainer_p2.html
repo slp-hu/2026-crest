@@ -271,7 +271,7 @@ footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(
 <header class="masthead">
   <div class="wrap">
     <div class="brand">音声コーパスの<em>可逆仮名化</em></div>
-    <div class="meta">法政大学 SLP / Paper 2 · 2026-08</div>
+    <div class="meta">法政大学 SLP / Paper 2 · <span id="pageRev">rev</span></div>
   </div>
 </header>
 
@@ -1436,7 +1436,12 @@ footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(
         <dt>当てずっぽうの水準</dt>
         <dd>rank-1 = 1.25%（候補 80 人）</dd>
         <dt>動くデモ</dt>
-        <dd><a href="./demo_p2/index.html">demo_p2/index.html</a></dd>
+        <dd><a href="./demo_p2/index.html">demo_p2/index.html</a> ／
+            <a href="./demo_min_vc.html">demo_min_vc.html</a></dd>
+        <dt>この頁の版</dt>
+        <dd><span id="pageRev2">rev</span></dd>
+        <dt>音源の状態</dt>
+        <dd id="audioState">確認中…</dd>
       </div>
     </dl>
   </div>
@@ -1543,6 +1548,20 @@ function arrow(svg,x1,y1,x2,y2,opt){
     fill:opt.stroke||C.rule2}));
 }
 
+/* ═══ 版の刻印。改訂したらここを上げる（お手元の頁がどれか分かるように） ═══ */
+var PAGE_REV = "2026-08-05e — VC 経路（§05）と聴き比べ入り";
+
+(function(){
+  ["pageRev","pageRev2"].forEach(function(id){
+    var e=document.getElementById(id); if(e) e.textContent=PAGE_REV;
+  });
+})();
+
+function setAudioState(msg){
+  var e=document.getElementById("audioState");
+  if(e) e.innerHTML=msg;
+}
+
 /* ── CORPUS を data-c の付いた要素へ流し込む ── */
 (function(){
   var map={short:CORPUS.short, full:CORPUS.full, nspk:String(CORPUS.nSpk),
@@ -1579,6 +1598,7 @@ function arrow(svg,x1,y1,x2,y2,opt){
       "<br><code>build_explainer_audio.py</code> がその 2 つを作ります。"+
       "（<code>demo_p2/</code> だけでも <code>A1</code> と <code>D_mos</code> は鳴ります）";
     fillAll(function(){ return null; });
+    setAudioState("<b>未接続</b> — <code>audio/</code> が見つかりません");
   }
   // 聴き比べストリップ。get(cond) が {url, dur} か null を返す
   function fillStrip(stripId, noteId, get, okText){
@@ -1696,6 +1716,10 @@ function arrow(svg,x1,y1,x2,y2,opt){
               "5 つの中では内容もリズムも同一。<br>";
     }
     fillAll(reGet, dGet, dNote);
+    var nItems = Object.keys(EA.items).length +
+                 Object.keys((EA.donor||{}).items||{}).length;
+    setAudioState("<code>audio/audio_index.js</code> から " + nItems + " 本"
+      + (EA.spk ? "（話者 " + EA.spk + " / uid " + EA.uid + "）" : ""));
     if(!ref || !pub){
       note.style.display="block";
       note.innerHTML="<b>audio/audio_index.js は読めましたが、"+
@@ -1714,6 +1738,7 @@ function arrow(svg,x1,y1,x2,y2,opt){
       document.getElementById("audRec").src=join(AUDIO_OVERRIDE.rec);
       document.getElementById("recovBar").hidden=false;
     }
+    setAudioState("<code>AUDIO_OVERRIDE</code> の手書き指定");
     var S=AUDIO_OVERRIDE.strip||{};
     fillAll(function(re){
       for(var c in S){ if(S[c] && re.test(c)) return {url:join(S[c])}; }
@@ -1787,6 +1812,8 @@ function arrow(svg,x1,y1,x2,y2,opt){
          document.getElementById("txtRight").textContent="書き起こし（そのまま公開）"; }
   if(rec){ document.getElementById("audRec").src=join(rec.wav); document.getElementById("recovBar").hidden=false; }
 
+  setAudioState("<code>demo_p2/demo_data.js</code> から自動検出"
+    + "（<code>audio/</code> を作ると §04・§05 も鳴ります）");
   var S2=AUDIO_OVERRIDE.strip||{};
   fillAll(function(re){
     for(var c in S2){ if(S2[c] && re.test(c)) return {url:join(S2[c])}; }
