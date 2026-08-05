@@ -30,8 +30,15 @@ window.EXPLAINER_AUDIO = {
   },
   "R": {
    "file": "R.wav",
-   "dur": 11.308,
-   "target": "1249"
+   "dur": 12.19,
+   "target": "1004",
+   "correct": true
+  },
+  "R_wrong": {
+   "file": "R_wrong.wav",
+   "dur": 11.401,
+   "target": "1231",
+   "correct": false
   }
  },
  "text": "とまず無人島っていうのが日頃本当に馴染みがなくてどういう島を想定するか凄い考えたんですけど私は高校の時にワイエムシーエーのキャンプに行ったことがありまして"
