@@ -109,6 +109,9 @@ figcaption b{color:var(--ink-2);font-weight:600}
 .recovbar .rl{font-family:var(--mono);font-size:11px;color:var(--teal);letter-spacing:.06em;flex:0 0 auto}
 .recovbar audio{flex:1 1 240px;height:34px;min-width:200px}
 .recovbar .note{flex:1 1 100%;font-size:12px;color:var(--ink-3);line-height:1.7;margin:0}
+.recovrow{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center}
+.recovrow.wrong .rl{color:var(--warm)}
+.recovrow .tgt{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
 .backflow{margin-top:14px;font-size:12.5px;color:var(--ink-3);text-align:center;line-height:1.7}
 #audNote{margin-top:12px;font-size:12.5px;line-height:1.7;color:var(--warm);background:#f0e9e7;border:1px solid #ddcac5;padding:10px 14px;display:none}
 
@@ -392,9 +395,18 @@ footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(
         </div>
       </div>
       <div class="recovbar" id="recovBar" hidden>
-        <span class="rl">鍵で復元した音声</span>
-        <audio id="audRec" controls preload="none"></audio>
-        <p class="note">当てた話者の声での<b>再合成</b>。録音を取り戻したものではない（§11）。</p>
+        <div class="recovrow" id="recovRight" hidden>
+          <span class="rl">正しい鍵で復元</span>
+          <audio id="audRec" controls preload="none"></audio>
+          <span class="tgt" id="recTgt"></span>
+        </div>
+        <div class="recovrow wrong" id="recovWrong" hidden>
+          <span class="rl">誤った鍵で復元</span>
+          <audio id="audRecW" controls preload="none"></audio>
+          <span class="tgt" id="recTgtW"></span>
+        </div>
+        <p class="note">当てた話者の声での<b>再合成</b>。録音を取り戻したものではない（§11）。
+        誤った鍵では<b>別人に着地する</b>ので、まったく違う声になる。</p>
       </div>
       <p class="backflow">鍵を持つ側が後から取り出せるのは、右から左へ引いたこの<b>対応表</b>だけ。左の列そのものではない。</p>
       <div id="audNote"></div>
@@ -1652,11 +1664,24 @@ function arrow(svg,x1,y1,x2,y2,opt){
       return null;
     };
     if(EA.text) setText(EA.text);
-    var ref = pick("A1"), pub = pick("D_mos"), rec = reGet(/^R(_|$)/);
+    var ref = pick("A1"), pub = pick("D_mos");
     if(ref) document.getElementById("audRef").src = ref.url;
     if(pub) document.getElementById("audPub").src = pub.url;
-    if(rec){ document.getElementById("audRec").src = rec.url;
-             document.getElementById("recovBar").hidden = false; }
+
+    var rec = pick("R"), recW = pick("R_wrong");
+    if(rec || recW) document.getElementById("recovBar").hidden = false;
+    if(rec){
+      document.getElementById("audRec").src = rec.url;
+      document.getElementById("recovRight").hidden = false;
+      var t = (EA.items.R || {}).target;
+      if(t) document.getElementById("recTgt").textContent = "復元先 " + t + "（＝本人）";
+    }
+    if(recW){
+      document.getElementById("audRecW").src = recW.url;
+      document.getElementById("recovWrong").hidden = false;
+      var tw = (EA.items.R_wrong || {}).target;
+      if(tw) document.getElementById("recTgtW").textContent = "復元先 " + tw + "（＝別人）";
+    }
 
     var dGet = null, dNote = "";
     if(EA.donor && EA.donor.items){
@@ -1751,7 +1776,7 @@ function arrow(svg,x1,y1,x2,y2,opt){
     if(same.length) return same[0];
     return items.filter(function(x){ return x.cond && re.test(x.cond); })[0] || null;
   }
-  var ref=mate(/^A1$/), rec=mate(/^R_/);
+  var ref=mate(/^A1$/), rec=mate(new RegExp("^R_"+String(pub.spk||"")+"$"));
   if(!ref){ fail("読み込めましたが、参照条件 <code>A1</code> の音源が見つかりませんでした。"); return; }
 
   document.getElementById("audRef").src=join(ref.wav);
