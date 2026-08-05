@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>可逆仮名化 — 鍵を持つ側だけが元話者に戻せる</title>
+<style>
+:root{
+  --ground:#dde3e6; --panel:#f7f9fa; --ink:#0f1a21; --muted:#67787f;
+  --line:#c3ced3; --hit:#00695c; --ref:#b26500; --bar:#9fb0b8;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho",YuMincho,"Noto Serif JP",serif;
+  --gothic:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic","Noto Sans JP",sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--gothic);
+     font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+.wrap{max-width:980px;margin:0 auto;padding:48px 24px 96px}
+header{margin-bottom:40px}
+h1{font-family:var(--mincho);font-size:30px;font-weight:600;letter-spacing:.02em;
+   margin:0 0 10px;line-height:1.45}
+.lede{color:var(--muted);max-width:60ch;margin:0}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--muted);
+         text-transform:uppercase;margin:0 0 14px}
+.panel{background:var(--panel);border:1px solid var(--line);padding:24px;margin-bottom:20px}
+.row{display:flex;gap:28px;flex-wrap:wrap}
+.col{flex:1 1 260px;min-width:240px}
+label.field{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.12em;
+            color:var(--muted);text-transform:uppercase;margin-bottom:8px}
+.seg{display:flex;border:1px solid var(--line);background:#fff;width:fit-content}
+.seg button{appearance:none;border:0;background:transparent;font:inherit;font-size:14px;
+            padding:8px 16px;cursor:pointer;color:var(--muted);
+            border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--hit);outline-offset:2px}
+select{font:inherit;padding:7px 10px;border:1px solid var(--line);background:#fff;color:inherit}
+.note{color:var(--muted);font-size:13px;margin:10px 0 0}
+audio{width:100%;margin-top:6px}
+.audio-label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted)}
+.verdict{font-family:var(--mincho);font-size:22px;margin:0 0 4px;line-height:1.5}
+.verdict .ok{color:var(--hit)}
+.verdict .no{color:var(--muted)}
+/* 署名要素: 80 候補のスコア櫛 */
+.comb{position:relative;height:190px;margin:22px 0 8px;border-bottom:1px solid var(--line)}
+.comb svg{display:block;width:100%;height:100%}
+.comb .b{fill:var(--bar)}
+.comb .b.hit{fill:var(--hit)}
+.comb rect{transition:y .22s ease,height .22s ease,fill .22s ease}
+.axis{display:flex;justify-content:space-between;font-family:var(--mono);
+      font-size:11px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;margin-top:18px;font-size:14px}
+th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);
+   text-transform:uppercase;font-weight:400}
+td.num{font-family:var(--mono);text-align:right}
+tr.true td{color:var(--hit);font-weight:600}
+.stat{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.stat b{font-size:26px;color:var(--ink);font-weight:600}
+footer{color:var(--muted);font-size:13px;margin-top:36px;border-top:1px solid var(--line);
+       padding-top:18px}
+footer ul{margin:6px 0 0;padding-left:1.2em}
+footer li{margin-bottom:6px}
+footer b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){.comb rect{transition:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <p class="eyebrow">pseudonymized speech corpus</p>
+  <h1>配布されるのは合成音。戻るのは「誰か」であって、録音ではない。</h1>
+  <p class="lede">研究用に共有するコーパスを想定しています。公開音声から声の特徴を取り出し、
+     候補<span id="nspk"></span>人と照合します。照合先を鍵から作るかどうかだけで結果が変わり、
+     鍵を持つ側は元の話者の声で言い直したものを聞けます。</p>
+</header>
+
+<div class="panel">
+  <div class="row">
+    <div class="col">
+      <label class="field" for="spk">話者</label>
+      <select id="spk"></select>
+      <p class="note" id="uidnote"></p>
+    </div>
+    <div class="col">
+      <span class="audio-label">公開音声（コーパスとして配布されるもの）</span>
+      <div id="a-pseu"></div>
+      <span class="audio-label">参照 — 元の話者（publisher の手元にのみある）</span>
+      <audio id="a-orig" controls preload="none"></audio>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="row">
+    <div class="col">
+      <label class="field">鍵</label>
+      <div class="seg" id="seg-key"></div>
+      <p class="note" id="keynote"></p>
+    </div>
+    <div class="col">
+      <label class="field">観測に使う発話数</label>
+      <div class="seg" id="seg-nt"></div>
+      <p class="note">増やすほど声の推定が安定します。ギャラリ側は鍵を持つ側が
+         あらかじめ厚くできますが、観測側は増やせません。</p>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="recover-panel" hidden>
+  <label class="field">鍵で復元した音声</label>
+  <p class="note" id="recnote"></p>
+  <audio id="a-rec" controls preload="none"></audio>
+</div>
+
+<div class="panel">
+  <p class="verdict" id="verdict"></p>
+  <div class="comb"><svg id="comb" preserveAspectRatio="none" aria-hidden="true"></svg></div>
+  <div class="axis"><span>候補 1</span><span id="axr"></span></div>
+  <table>
+    <thead><tr><th>順位</th><th>候補</th><th style="text-align:right">類似度</th></tr></thead>
+    <tbody id="top5"></tbody>
+  </table>
+  <p class="stat" style="margin-top:20px">
+    この設定での的中率（全<span id="nspk2"></span>話者）<br><b id="acc"></b>
+    <span id="chance"></span>
+  </p>
+</div>
+
+<footer>
+  <p id="foot"></p>
+  <p><b>この設定について</b></p>
+  <ul>
+    <li>公開されるのはすべて合成音です。<b>原録音は publisher の外に出ません。</b>
+        収録環境・息・笑い・発話の重なりは公開の時点で残っていません。</li>
+    <li>鍵で戻るのは<b>話者の同一性</b>であって、録音そのものではありません。
+        復元音は元の話者の声での再合成です。</li>
+    <li>この設定では<b>話し方（リズム）は保護していません</b>。態度・感情の分析に使えるようにするための
+        意図的な選択です。韻律だけを手がかりにする攻撃者が
+        40 発話ずつを登録・照合に使える場合、約 6% の等価誤り率で再識別が残ります。</li>
+    <li>実運用では公開音声からリズムを抽出する段が入り、そこで忠実度が落ちます。
+        このプロトタイプはその段を省いています。</li>
+  </ul>
+</footer>
+</div>
+
+<script src="demo_data.js"></script>
+<script>
+(function(){
+  var D = window.DEMO, M = D.meta;
+  var state = {spk: D.demo[0].spk, key: "right", nt: 1};
+
+  document.getElementById("nspk").textContent = M.n_spk;
+  document.getElementById("nspk2").textContent = M.n_spk;
+  document.getElementById("axr").textContent = "候補 " + M.n_spk;
+  document.getElementById("foot").textContent =
+    "ギャラリは話者あたり " + M.n_gallery + " 発話。観測に使う発話はギャラリから除いてあります。"
+    + " 候補は " + M.n_spk + " 人で、当てずっぽうの的中率は " + M.chance + "%。";
+
+  var selSpk = document.getElementById("spk");
+  D.demo.forEach(function(d){
+    var o = document.createElement("option");
+    o.value = d.spk; o.textContent = "話者 " + d.spk;
+    selSpk.appendChild(o);
+  });
+  selSpk.addEventListener("change", function(){ state.spk = this.value; render(); });
+
+  function seg(el, opts, field){
+    opts.forEach(function(o){
+      var b = document.createElement("button");
+      b.type = "button"; b.textContent = o.label; b.dataset.v = o.value;
+      b.addEventListener("click", function(){ state[field] = o.value; render(); });
+      el.appendChild(b);
+    });
+  }
+  seg(document.getElementById("seg-key"),
+      D.keys.map(function(k){ return {value:k.id, label:k.label}; }), "key");
+  seg(document.getElementById("seg-nt"),
+      M.n_ts.map(function(n){ return {value:n, label:n + " 本"}; }), "nt");
+
+  function cur(){ return D.demo.filter(function(d){ return d.spk === state.spk; })[0]; }
+
+  function render(){
+    var d = cur(), keyDef = D.keys.filter(function(k){ return k.id === state.key; })[0];
+    var sc = d.scores[state.key][state.nt];
+
+    document.querySelectorAll("#seg-key button").forEach(function(b){
+      b.setAttribute("aria-pressed", b.dataset.v === state.key);
+    });
+    document.querySelectorAll("#seg-nt button").forEach(function(b){
+      b.setAttribute("aria-pressed", String(b.dataset.v) === String(state.nt));
+    });
+    document.getElementById("keynote").textContent = keyDef.note + "。";
+
+    document.getElementById("a-orig").src = d.audio.orig[0];
+    var box = document.getElementById("a-pseu");
+    box.innerHTML = "";
+    for (var q = 0; q < state.nt; q++) {
+      var au = document.createElement("audio");
+      au.controls = true; au.preload = "none"; au.src = d.audio.pseudo[q];
+      box.appendChild(au);
+    }
+    document.getElementById("uidnote").textContent =
+      "この話者の " + d.uids.length + " 発話をギャラリから外してあります。"
+      + "うち " + state.nt + " 本を観測に使います。";
+
+    // 順位
+    var idx = sc.map(function(v,i){ return [v,i]; })
+                .sort(function(x,y){ return y[0]-x[0]; });
+    var top = idx[0][1], correct = (top === d.index);
+
+    document.getElementById("verdict").innerHTML = correct
+      ? '元話者と判定: <span class="ok">話者 ' + D.spks[top] + '</span> — 正解'
+      : '元話者と判定: <span class="no">話者 ' + D.spks[top] + '</span> — 不正解（正解は話者 '
+        + d.spk + '）';
+
+    // 櫛
+    var lo = Math.min.apply(null, sc), hi = Math.max.apply(null, sc);
+    var pad = (hi - lo) * 0.12 || 0.01, y0 = lo - pad, y1 = hi + pad;
+    var W = 1000, H = 190, n = sc.length, w = W / n;
+    var svg = document.getElementById("comb");
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H);
+    if (svg.childNodes.length !== n) {
+      svg.innerHTML = "";
+      for (var i = 0; i < n; i++) {
+        var r = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        r.setAttribute("x", (i * w + w * 0.18).toFixed(2));
+        r.setAttribute("width", Math.max(1, w * 0.64).toFixed(2));
+        svg.appendChild(r);
+      }
+    }
+    for (var j = 0; j < n; j++) {
+      var h = Math.max(1, (sc[j] - y0) / (y1 - y0) * H);
+      var rect = svg.childNodes[j];
+      rect.setAttribute("y", (H - h).toFixed(2));
+      rect.setAttribute("height", h.toFixed(2));
+      rect.setAttribute("class", j === d.index ? "b hit" : "b");
+    }
+
+    // 上位 5
+    var tb = document.getElementById("top5");
+    tb.innerHTML = "";
+    idx.slice(0, 5).forEach(function(p, r){
+      var tr = document.createElement("tr");
+      if (p[1] === d.index) tr.className = "true";
+      tr.innerHTML = "<td>" + (r+1) + "</td><td>話者 " + D.spks[p[1]]
+                   + (p[1] === d.index ? "　← 正解" : "") + "</td>"
+                   + '<td class="num">' + p[0].toFixed(4) + "</td>";
+      tb.appendChild(tr);
+    });
+
+    // 復元の 2 段目
+    var rp = document.getElementById("recover-panel");
+    if (D.has_recover) {
+      var rc = d.recover[state.key][state.nt];
+      rp.hidden = false;
+      document.getElementById("a-rec").src = rc.wav || "";
+      document.getElementById("recnote").textContent = rc.correct
+        ? "話者 " + rc.target + " の声で言い直したもの。元の話者に戻っています"
+          + "（録音ではなく再合成です）。"
+        : "話者 " + rc.target + " の声で言い直したもの。別人の声で同じ内容が出ます。";
+    } else { rp.hidden = true; }
+
+    var a = D.accuracy[state.key][state.nt];
+    document.getElementById("acc").textContent = a + "%";
+    document.getElementById("chance").textContent =
+      "（当てずっぽうなら " + M.chance + "%）";
+  }
+  render();
+})();
+</script>
+</body>
+</html>
