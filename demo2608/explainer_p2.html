@@ -405,7 +405,7 @@ footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(
           <audio id="audRecW" controls preload="none"></audio>
           <span class="tgt" id="recTgtW"></span>
         </div>
-        <p class="note">当てた話者の声での<b>再合成</b>。録音を取り戻したものではない（§11）。
+        <p class="note" id="recovNote">当てた話者の声での<b>再合成</b>。録音を取り戻したものではない（§11）。
         誤った鍵では<b>別人に着地する</b>ので、まったく違う声になる。</p>
       </div>
       <p class="backflow">鍵を持つ側が後から取り出せるのは、右から左へ引いたこの<b>対応表</b>だけ。左の列そのものではない。</p>
@@ -1549,7 +1549,7 @@ function arrow(svg,x1,y1,x2,y2,opt){
 }
 
 /* ═══ 版の刻印。改訂したらここを上げる（お手元の頁がどれか分かるように） ═══ */
-var PAGE_REV = "2026-08-05e — VC 経路（§05）と聴き比べ入り";
+var PAGE_REV = "2026-08-05g — VC 経路（§05）・聴き比べ・復元の別発話対応";
 
 (function(){
   ["pageRev","pageRev2"].forEach(function(id){
@@ -1634,10 +1634,13 @@ function setAudioState(msg){
     });
     var n=noteId && document.getElementById(noteId);
     if(n){
+      var vcMissing = missing.some(function(c){ return c.indexOf("VC")===0 || c==="src"; });
       n.innerHTML = missing.length
         ? ("鳴らない条件があります（"+missing.map(function(c){return "<code>"+c+"</code>";}).join(" / ")+
-           "）。<code>audio/</code> フォルダを作ると全部鳴ります —— "+
-           "<code>build_explainer_audio.py</code> を参照。")
+           "）。" + (vcMissing
+             ? "VC 経路の音源が <code>audio/</code> に入っていません —— "+
+               "<code>build_explainer_audio.py</code> に <code>--demo-min-vc &lt;demo_min_vc.zip&gt;</code> を渡して作り直してください。"
+             : "<code>build_explainer_audio.py</code> に <code>--demo-wav</code> を渡すと埋まります。"))
         : okText;
     }
     return missing;
@@ -1688,19 +1691,27 @@ function setAudioState(msg){
     if(ref) document.getElementById("audRef").src = ref.url;
     if(pub) document.getElementById("audPub").src = pub.url;
 
-    var rec = pick("R"), recW = pick("R_wrong");
+    // 復元音は別発話から来ることがある（VC の発話と復元の発話が一致しないため）
+    var RSRC = EA.items.R ? EA.items : ((EA.recov && EA.recov.items) || {});
+    var rget = function(k){ return RSRC[k] ? {url: adir + RSRC[k].file} : null; };
+    var rec = rget("R"), recW = rget("R_wrong");
     if(rec || recW) document.getElementById("recovBar").hidden = false;
     if(rec){
       document.getElementById("audRec").src = rec.url;
       document.getElementById("recovRight").hidden = false;
-      var t = (EA.items.R || {}).target;
+      var t = (RSRC.R || {}).target;
       if(t) document.getElementById("recTgt").textContent = "復元先 " + t + "（＝本人）";
     }
     if(recW){
       document.getElementById("audRecW").src = recW.url;
       document.getElementById("recovWrong").hidden = false;
-      var tw = (EA.items.R_wrong || {}).target;
+      var tw = (RSRC.R_wrong || {}).target;
       if(tw) document.getElementById("recTgtW").textContent = "復元先 " + tw + "（＝別人）";
+    }
+    if(!EA.items.R && EA.recov){
+      var rn = document.getElementById("recovNote");
+      if(rn) rn.innerHTML = "上の 2 枚とは<b>別の発話</b>（話者 " + EA.recov.spk +
+        " / uid " + EA.recov.uid + "）。復元音が揃っているのがそちらだけのため。" + rn.innerHTML;
     }
 
     var dGet = null, dNote = "";
