@@ -1451,6 +1451,7 @@ footer h3{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(
      ① audio/audio_index.js があればそれを使う（build_explainer_audio.py が作る）
      ② 無ければ demo_p2/demo_data.js から拾えるぶんだけ使う -->
 <script src="./audio/audio_index.js" onerror="window.__AUDIO_INDEX_FAILED=true"></script>
+<script src="./demo_min_vc/demo_data.js" onerror="window.__DEMOMIN_FAILED=true"></script>
 <script src="./demo_p2/demo_data.js" onerror="window.__DEMO_LOAD_FAILED=true"></script>
 
 <script>
@@ -1549,7 +1550,7 @@ function arrow(svg,x1,y1,x2,y2,opt){
 }
 
 /* ═══ 版の刻印。改訂したらここを上げる（お手元の頁がどれか分かるように） ═══ */
-var PAGE_REV = "2026-08-05g — VC 経路（§05）・聴き比べ・復元の別発話対応";
+var PAGE_REV = "2026-08-05k — demo_min_vc/ を直接読む経路つき";
 
 (function(){
   ["pageRev","pageRev2"].forEach(function(id){
@@ -1600,6 +1601,16 @@ function setAudioState(msg){
     fillAll(function(){ return null; });
     setAudioState("<b>未接続</b> — <code>audio/</code> が見つかりません");
   }
+  // 相対パスの書き方が 2 通りありうるので、失敗したらもう一方を試す
+  function setSrc(el, url, alt){
+    el.src = url;
+    if(!alt) return;
+    el.addEventListener("error", function once(){
+      el.removeEventListener("error", once);
+      el.src = alt;
+    });
+  }
+
   // 聴き比べストリップ。get(cond) が {url, dur} か null を返す
   function fillStrip(stripId, noteId, get, okText){
     var strip=document.getElementById(stripId);
@@ -1616,7 +1627,8 @@ function setAudioState(msg){
       slot.innerHTML="";
       if(got && got.url){
         var a=document.createElement("audio");
-        a.controls=true; a.preload="none"; a.src=got.url; slot.appendChild(a);
+        a.controls=true; a.preload="none";
+        setSrc(a, got.url, got.alt); slot.appendChild(a);
         if(got.dur){
           var w=document.createElement("div"); w.className="dur";
           var b=document.createElement("div"); b.className="durbar";
@@ -1665,13 +1677,62 @@ function setAudioState(msg){
       var g = donorGet && donorGet(condRe(c));
       return g || get(condRe(c));
     }, (donorNote||"") + STRIP_OK_TTS);
-    fillStrip("vcstrip","vcstripNote",function(c){return get(condRe(c));},STRIP_OK_VC);
-    fillStrip("vcstrip2",null,function(c){return get(condRe(c));},"");
+
+    // §05 は 4 つが同じ発話でないと長さの比較が成立しない。
+    // VC が demo_min_vc 側にしか無い場合は、この枠だけ丸ごとそちらから取る。
+    var vcGet = function(c){ return get(condRe(c)); }, vcNote = STRIP_OK_VC;
+    var eaHasVC = !!(EA && EA.items && EA.items.VC_mos);
+    if(DM && !eaHasVC && dmGet(/^VC_mos$/)){
+      vcGet = function(c){ return dmGet(condRe(c)); };
+      vcNote = "<b>この枠は " + (DM.spk ? "話者 " + DM.spk + " / uid " + DM.uid : "別の発話") +
+               "</b>（4 つを同じ発話で揃えるため）。<br>" + STRIP_OK_VC;
+    }
+    fillStrip("vcstrip","vcstripNote",vcGet,vcNote);
+    fillStrip("vcstrip2",null,vcGet,"");
   }
   function join(p){
     if(!p) return null;
     if(/^(https?:|\.\/|\/)/.test(p)) return p;
     return dir+p.replace(/^\.?\//,"");
+  }
+
+  // ③ demo_min_vc/demo_data.js（window.DEMO_MIN）から直接読む経路。
+  //    audio/ を作らなくても、demo_min_vc/ を隣に置くだけで §01・§05 が埋まる。
+  var DM = (function(){
+    var D = window.DEMO_MIN;
+    if(!D || !D.speakers || !D.speakers.length) return null;
+    var best=null, bestDur=-1;
+    D.speakers.forEach(function(sp){
+      var d=0; (sp.rows||[]).forEach(function(r){ if(r.dur>d) d=r.dur; });
+      if(d>bestDur){ bestDur=d; best=sp; }
+    });
+    if(!best) return null;
+    var items={};
+    (best.rows||[]).forEach(function(r){
+      var c=String(r.code||"");
+      if(c==="CSJ"||c==="SRC"||c==="ORIG"||c==="orig") c="src";
+      var f=String(r.file||""); if(!f) return;
+      var url, alt=null;
+      if(/^(data:|https?:|\/)/.test(f)){
+        url = f;
+      }else{
+        var rel = f.replace(/^\.\//,"");
+        if(rel.indexOf("/") >= 0){                 // 例 wav/10__…__A1.wav
+          url = "./demo_min_vc/" + rel;
+          alt = "./demo_min_vc/wav/" + rel.split("/").pop();
+        }else{                                     // 例 10__…__A1.wav（裸の名前）
+          url = "./demo_min_vc/wav/" + rel;
+          alt = "./demo_min_vc/" + rel;
+        }
+      }
+      items[c]={url:url, alt:alt, dur:r.dur};
+    });
+    return Object.keys(items).length ? {spk:best.spk, uid:best.uid, items:items} : null;
+  })();
+  function dmGet(re){
+    if(!DM) return null;
+    for(var c in DM.items){ if(re.test(c)) return DM.items[c]; }
+    return null;
   }
 
   // ① audio/audio_index.js があればそれを使う（いちばん確実な経路）
@@ -1684,12 +1745,12 @@ function setAudioState(msg){
     };
     var reGet = function(re){
       for(var c in EA.items){ if(re.test(c)) return pick(c); }
-      return null;
+      return dmGet(re);                       // 足りないぶんは demo_min_vc から
     };
     if(EA.text) setText(EA.text);
     var ref = pick("A1"), pub = pick("D_mos");
-    if(ref) document.getElementById("audRef").src = ref.url;
-    if(pub) document.getElementById("audPub").src = pub.url;
+    if(ref) setSrc(document.getElementById("audRef"), ref.url, ref.alt);
+    if(pub) setSrc(document.getElementById("audPub"), pub.url, pub.alt);
 
     // 復元音は別発話から来ることがある（VC の発話と復元の発話が一致しないため）
     var RSRC = EA.items.R ? EA.items : ((EA.recov && EA.recov.items) || {});
@@ -1730,7 +1791,8 @@ function setAudioState(msg){
     var nItems = Object.keys(EA.items).length +
                  Object.keys((EA.donor||{}).items||{}).length;
     setAudioState("<code>audio/audio_index.js</code> から " + nItems + " 本"
-      + (EA.spk ? "（話者 " + EA.spk + " / uid " + EA.uid + "）" : ""));
+      + (EA.spk ? "（話者 " + EA.spk + " / uid " + EA.uid + "）" : "")
+      + (DM ? " ＋ <code>demo_min_vc/</code> から補完（話者 " + DM.spk + "）" : ""));
     if(!ref || !pub){
       note.style.display="block";
       note.innerHTML="<b>audio/audio_index.js は読めましたが、"+
@@ -1761,6 +1823,15 @@ function setAudioState(msg){
   }
 
   if(window.__DEMO_LOAD_FAILED || typeof window.DEMO==="undefined"){
+    if(DM){                                   // demo_min_vc だけでも成立させる
+      var r0=dmGet(/^A1$/), p0=dmGet(/^D_mos$/);
+      if(r0) setSrc(document.getElementById("audRef"), r0.url, r0.alt);
+      if(p0) setSrc(document.getElementById("audPub"), p0.url, p0.alt);
+      fillAll(dmGet);
+      setAudioState("<code>demo_min_vc/demo_data.js</code> から（話者 " + DM.spk +
+        " / uid " + DM.uid + "）。<code>audio/</code> を作ると §04 と復元も鳴ります");
+      return;
+    }
     fail("<code>demo_p2/demo_data.js</code> を読み込めませんでした。");
     return;
   }
@@ -1824,12 +1895,14 @@ function setAudioState(msg){
   if(rec){ document.getElementById("audRec").src=join(rec.wav); document.getElementById("recovBar").hidden=false; }
 
   setAudioState("<code>demo_p2/demo_data.js</code> から自動検出"
-    + "（<code>audio/</code> を作ると §04・§05 も鳴ります）");
+    + (DM ? " ＋ <code>demo_min_vc/</code>（話者 " + DM.spk + "）" : "")
+    + "（<code>audio/</code> を作ると全部揃います）");
   var S2=AUDIO_OVERRIDE.strip||{};
   fillAll(function(re){
     for(var c in S2){ if(S2[c] && re.test(c)) return {url:join(S2[c])}; }
     var it=mate(re);
-    return it ? {url:join(it.wav)} : null;
+    if(it) return {url:join(it.wav)};
+    return dmGet(re);
   });
 })();
 
