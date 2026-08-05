@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VC 経路プロトタイプ — 可逆仮名化</title>
+<style>
+:root{
+  --paper:#f4f6f8; --card:#ffffff; --ink:#151d26; --ink-2:#4a5866; --rule:#d7dee6;
+  --src:#6b7785; --tts:#1f6f6b; --vc:#7d3f86; --warn:#8a5a12;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP","Yu Gothic",sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  line-height:1.75;-webkit-font-smoothing:antialiased}
+.wrap{max-width:920px;margin:0 auto;padding:56px 24px 96px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-2);margin:0 0 14px}
+h1{font-size:clamp(26px,4.2vw,40px);line-height:1.35;letter-spacing:-.02em;font-weight:800;margin:0 0 18px}
+.lede{font-size:17px;color:var(--ink-2);margin:0 0 8px;max-width:62ch}
+h2{font-size:19px;font-weight:700;letter-spacing:-.01em;margin:56px 0 6px;
+  padding-top:22px;border-top:2px solid var(--ink)}
+h2 .n{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-right:10px;letter-spacing:.1em}
+.sub{color:var(--ink-2);font-size:14px;margin:0 0 22px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 22px}
+.tab{font-family:var(--mono);font-size:13px;padding:7px 13px;border:1px solid var(--rule);
+  background:var(--card);color:var(--ink-2);border-radius:2px;cursor:pointer}
+.tab:hover{border-color:var(--ink-2)}
+.tab[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.tab:focus-visible{outline:2px solid var(--tts);outline-offset:2px}
+
+.row{background:var(--card);border:1px solid var(--rule);border-left:4px solid var(--src);
+  padding:16px 18px;margin:0 0 10px}
+.row.tts{border-left-color:var(--tts)} .row.vc{border-left-color:var(--vc)}
+.row.miss{opacity:.45}
+.rhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+.code{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:2px;
+  background:#eef1f4;color:var(--ink-2)}
+.row.tts .code{background:#e4f0ef;color:var(--tts)}
+.row.vc  .code{background:#f2e9f3;color:var(--vc)}
+.rlabel{font-weight:700;font-size:15px}
+.lane{font-family:var(--mono);font-size:11px;letter-spacing:.08em;color:var(--ink-2);margin-left:auto}
+.note{color:var(--ink-2);font-size:14px;margin:0 0 10px}
+audio{width:100%;height:34px;display:block}
+.meta{font-family:var(--mono);font-size:11px;color:var(--ink-2);margin-top:6px}
+.bar{height:5px;background:#e7ebef;margin-top:7px;position:relative}
+.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--src);display:block}
+.row.tts .bar i{background:var(--tts)} .row.vc .bar i{background:var(--vc)}
+
+details{margin:14px 0 0}
+summary{font-family:var(--mono);font-size:12px;color:var(--ink-2);cursor:pointer;
+  padding:8px 0;letter-spacing:.06em}
+summary:focus-visible{outline:2px solid var(--tts);outline-offset:2px}
+
+table{width:100%;border-collapse:collapse;font-size:14px;background:var(--card);
+  border:1px solid var(--rule)}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule)}
+th{font-size:12px;letter-spacing:.06em;color:var(--ink-2);font-weight:600;background:#eef1f4}
+tr:last-child td{border-bottom:none}
+td.k{font-family:var(--mono);font-weight:700}
+td.c{font-family:var(--mono)}
+td.why{color:var(--ink-2);font-size:13px}
+
+ol.pts{counter-reset:p;list-style:none;padding:0;margin:0}
+ol.pts li{counter-increment:p;position:relative;padding:14px 0 14px 44px;border-bottom:1px solid var(--rule)}
+ol.pts li:last-child{border-bottom:none}
+ol.pts li::before{content:counter(p);position:absolute;left:0;top:15px;font-family:var(--mono);
+  font-size:12px;width:26px;height:26px;line-height:26px;text-align:center;
+  background:var(--ink);color:#fff;border-radius:50%}
+ol.pts b{display:block;font-size:15px}
+ol.pts span{color:var(--ink-2);font-size:14px}
+
+ul.lim{list-style:none;padding:0;margin:0;font-size:14px;color:var(--ink-2)}
+ul.lim li{padding:9px 0 9px 20px;position:relative;border-bottom:1px solid var(--rule)}
+ul.lim li:last-child{border-bottom:none}
+ul.lim li::before{content:"—";position:absolute;left:0;color:var(--warn)}
+ul.lim b{color:var(--ink)}
+footer{margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);
+  font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+@media (prefers-reduced-motion:no-preference){.row{transition:opacity .15s}}
+</style>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">可逆仮名化プロトタイプ &nbsp;/&nbsp; VC 経路</p>
+  <h1>テキストを使わずに、声を別人にして、鍵で本人に戻す</h1>
+  <p class="lede">これまでのデモは、テキストと話し方から音声を合成する経路（TTS）で組んでいました。
+  同じ仕組みが、<b>音声をそのまま別の声へ変換する経路（VC）でも成り立つ</b>ことを示します。
+  変換にテキストもアライメントも要らないので、オンラインの API 利用にそのまま置けます。</p>
+
+  <h2><span class="n">01</span>同じ発話を、4 とおりで聴く</h2>
+  <p class="sub">話者を選ぶと、同じ発話の 4 版が並びます。棒は発話長です —
+  VC 経路は原音の長さをそのまま保ちます。</p>
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div id="rows"></div>
+  <details>
+    <summary>対照も聴く（床 VC_self / 誤鍵 VC_mosK2）</summary>
+    <div id="extra"></div>
+  </details>
+
+  <h2><span class="n">02</span>鍵が効いているか</h2>
+  <p class="sub">80 話者・chance 1.25%。k は擬似話者の分離度で、
+  <span style="font-family:var(--mono)">d&prime; = k/&radic;(1/n<sub>e</sub>+1/n<sub>t</sub>)</span> の唯一の設計変数です。</p>
+  <table>
+    <tr><th>段</th><th>条件</th><th>k</th><th>rank-1</th><th>読み</th></tr>
+    <tr><td>床</td><td class="c">VC_self</td><td class="k">4.10</td><td class="c">100%</td><td class="why">VC の往復コストはほぼゼロ</td></tr>
+    <tr><td>正鍵</td><td class="c">VC_mos</td><td class="k">3.71</td><td class="c">98.75–100%</td><td class="why">TTS 経路の D_mos は 3.84–3.93</td></tr>
+    <tr><td>誤鍵</td><td class="c">VC_mosK2</td><td class="k">0.08</td><td class="c">0–5%</td><td class="why">chance と区別できない</td></tr>
+    <tr><td>鍵なし</td><td class="c">A1</td><td class="k">—</td><td class="c">0–1.25%</td><td class="why">chance ちょうど（1.25%）</td></tr>
+  </table>
+
+  <h2><span class="n">03</span>この 3 つを言う</h2>
+  <ol class="pts">
+    <li><b>方式は経路に依存しない</b><span>VC 経路の正鍵 k = 3.71 は、TTS 経路の 3.84–3.93 とほぼ同じ水準。
+    擬似話者の作り方（主成分モザイク）がそのまま効いている。</span></li>
+    <li><b>テキストもアライメントも要らない</b><span>入力は音声だけ。だからクラウド API に音声を送る用途に、
+    そのまま挟める。</span></li>
+    <li><b>話し方は原話者のまま。ただし蓄積しない</b><span>音色は完全に置き換わるが、話し方は残る。
+    その残余は発話を集めても強くならない — 深さを 25 倍にしても EER は 43.75% → 47.48% で動かない
+    （本物のチャネルなら d&prime; が 3.16 倍になるはず）。</span></li>
+  </ol>
+
+  <h2><span class="n">04</span>言わないでおくこと</h2>
+  <ul class="lim">
+    <li><b>「原録音は外に出ない」は VC 版では使えない。</b>配布されるのは変換音で、原録音由来です。
+    言えるのは「音色は完全に置き換わっており、鍵がなければ誰にも辿れない」まで。</li>
+    <li><b>話し方は仮名化していません。</b>TTS 経路は話し方をチャネルとして扱えるので
+    <span class="code">P_full</span> を選べますが、VC 経路は原話者の話し方が常に素通しです。</li>
+    <li><b>この頁の音と数字は CSJ で撮った見本です。</b>この方式が要るのは、
+    これから作られる、生音声のままでは配れないコーパスのほう。</li>
+    <li><b>80 話者では EER の分解能が 0.6%。</b>論文用の数字は 375 話者で取り直します。</li>
+  </ul>
+
+  <footer>8 話者 &middot; ckpt e10_s83230 &middot; vcprobe1 / vcprobe_deep &middot; 音量は RMS で揃えてあります</footer>
+</div>
+<script src="demo_data.js"></script>
+<script>
+(function(){
+  var D = window.DEMO_MIN, spks = D.speakers.map(function(s){return s.spk});
+  var tabs = document.getElementById('tabs'), rows = document.getElementById('rows');
+  var maxDur = 0;
+  D.speakers.forEach(function(s){ s.rows.forEach(function(r){
+    if(r.dur && r.dur > maxDur) maxDur = r.dur; }); });
+
+  var extra = document.getElementById('extra');
+  var LANE = {src:'録音', tts:'TTS 経路', vc:'VC 経路'};
+
+  function card(r){
+    var d = document.createElement('div');
+    d.className = 'row ' + r.lane + (r.file ? '' : ' miss');
+    var pct = (r.dur && maxDur) ? Math.round(100*r.dur/maxDur) : 0;
+    d.innerHTML =
+      '<div class="rhead"><span class="code">'+r.code+'</span>'+
+      '<span class="rlabel">'+r.label+'</span>'+
+      '<span class="lane">'+LANE[r.lane]+'</span></div>'+
+      '<p class="note">'+r.note+'</p>'+
+      (r.file
+        ? '<audio controls preload="none" src="wav/'+r.file+'"></audio>'+
+          '<div class="bar"><i style="width:'+pct+'%"></i></div>'+
+          '<div class="meta">'+r.dur.toFixed(2)+' s &middot; '+(r.sr/1000)+' kHz</div>'
+        : '<div class="meta">この条件の音声は見つかりませんでした</div>');
+    return d;
+  }
+
+  function render(i){
+    var s = D.speakers[i];
+    Array.prototype.forEach.call(tabs.children, function(b,j){
+      b.setAttribute('aria-selected', j === i ? 'true' : 'false'); });
+    rows.innerHTML = ''; extra.innerHTML = '';
+    s.rows.forEach(function(r){ (r.extra ? extra : rows).appendChild(card(r)); });
+  }
+
+  D.speakers.forEach(function(s,i){
+    var b = document.createElement('button');
+    b.className = 'tab'; b.type = 'button'; b.setAttribute('role','tab');
+    b.textContent = 'spk ' + s.spk;
+    b.onclick = function(){ render(i); };
+    tabs.appendChild(b);
+  });
+  render(0);
+})();
+</script>
+</body>
+</html>
